@@ -2,7 +2,7 @@
 
 client_id = "11fa42f73653933ca47a9ea1e7b1e2a7"
 name = "Quantity & Breaks Discount"
-application_url = "https://humans-quite-pregnant-assessing.trycloudflare.com"
+application_url = "https://corruption-potentially-motivation-mix.trycloudflare.com"
 embedded = true
 handle = "quantity-breaks-discount"
 
@@ -26,7 +26,7 @@ api_version = "2025-07"
 scopes = "write_products,read_products,write_script_tags,read_script_tags,write_discounts,read_discounts,write_price_rules"
 
 [auth]
-redirect_urls = ["https://humans-quite-pregnant-assessing.trycloudflare.com/auth/callback", "https://humans-quite-pregnant-assessing.trycloudflare.com/auth/shopify/callback", "https://humans-quite-pregnant-assessing.trycloudflare.com/api/auth/callback"]
+redirect_urls = ["https://corruption-potentially-motivation-mix.trycloudflare.com/auth/callback", "https://corruption-potentially-motivation-mix.trycloudflare.com/auth/shopify/callback", "https://corruption-potentially-motivation-mix.trycloudflare.com/api/auth/callback"]
 
 [pos]
 embedded = false

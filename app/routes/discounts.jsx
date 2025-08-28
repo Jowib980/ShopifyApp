@@ -22,7 +22,7 @@ export default function Create() {
 
   const fetchOffers = () => {
     setLoading(true);
-      fetch("https://emporium.cardiacambulance.com/shopify/proxy/offer-products") // proxy from your app
+      fetch("https://emporium.cardiacambulance.com/api/offer-products") // proxy from your app
         .then((res) => res.json())
         .then((data) => {
           console.log(data);

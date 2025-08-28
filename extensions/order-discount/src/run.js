@@ -34,26 +34,23 @@ function trimTrailingZeros(n) {
 export function run(input) {
   const { cart, discountNode } = input;
 
-  // Return empty if no cart lines
   if (!cart?.lines?.length) return EMPTY_DISCOUNT;
 
-  let offers = [];
+  // 1) Prefer a single/global offers array passed via discountNode.metafield.value
+  let offers = safeParseJSON(discountNode?.metafield?.value);
 
-  // 1️⃣ Collect global offers from discountNode metafield if exists
-  if (discountNode?.metafield?.value) {
-    offers = safeParseJSON(discountNode.metafield.value);
-  }
-
-  // 2️⃣ Collect offers from each product metafield
-  for (const line of cart.lines) {
-    try {
-      const productMf = line?.merchandise?.product?.metafields?.custom?.offers?.value;
-      if (productMf) {
-        const localOffers = safeParseJSON(productMf);
-        if (Array.isArray(localOffers) && localOffers.length) offers = offers.concat(localOffers);
+  // 2) Fallback: try to collect per-line product metafields (if available)
+  if (!offers.length) {
+    for (const line of cart.lines) {
+      try {
+        const productMf = line?.merchandise?.product?.metafield?.value;
+        if (productMf) {
+          const local = safeParseJSON(productMf);
+          if (Array.isArray(local) && local.length) offers = offers.concat(local);
+        }
+      } catch (e) {
+        // ignore parse errors per-line
       }
-    } catch (e) {
-      console.error("Error parsing product metafield for line", line.id, e);
     }
   }
 
@@ -64,19 +61,20 @@ export function run(input) {
   for (const line of cart.lines) {
     if (line.merchandise?.__typename !== "ProductVariant") continue;
 
-    const productGid = line.merchandise.product?.id;
+    const productGid = line.merchandise.product?.id; // expected gid://shopify/Product/...
     const qty = Number(line.quantity || 0);
     if (!productGid || qty <= 0) continue;
 
-    // Find offers for this product
+    // find all offers that target this product
     const matching = offers.filter((o) => {
+      // allow different naming in JSON: productId or product_id, minQty / buy_quantity etc.
       const pid = o.productId ?? o.product_id;
       return pid === productGid;
     });
 
     if (!matching.length) continue;
 
-    // Compute the best offer
+    // For each matching offer compute effective percentage and pick the best
     let bestOfferResult = null;
 
     for (const o of matching) {
@@ -86,6 +84,7 @@ export function run(input) {
       const percentOff = Number(o.percentOff ?? o.percent_off ?? o.discount_percent ?? 0);
       const freeQty = Number(o.freeQty ?? o.free_quantity ?? o.free_qty ?? 0);
 
+      // compute free items as groups of (minQty + freeQty)
       let freeItems = 0;
       if (freeQty > 0) {
         const groupSize = minQty + freeQty;
@@ -95,7 +94,10 @@ export function run(input) {
         }
       }
 
+      // freePercentage applied across the whole line
       const freePercentage = freeItems > 0 ? (freeItems / qty) * 100 : 0;
+
+      // choose the larger effective percentage for safety (don't stack by default)
       const effectivePercent = Math.max(percentOff, freePercentage);
 
       if (effectivePercent > 0 && (!bestOfferResult || effectivePercent > bestOfferResult.effectivePercent)) {
@@ -112,10 +114,10 @@ export function run(input) {
 
     if (!bestOfferResult) continue;
 
-    // Build message
+    // Build a friendly message
     let message = "";
     if (bestOfferResult.freeItems > 0) {
-      message = `Buy ${bestOfferResult.minQty} get ${bestOfferResult.rawOffer.freeQty ?? bestOfferResult.rawOffer.free_quantity ?? 0} free`;
+      message = `Buy ${bestOfferResult.minQty} get ${bestOfferResult.rawOffer.freeQty ?? bestOfferResult.rawOffer.free_quantity ?? 1} free`;
     } else {
       message = `Buy ${bestOfferResult.minQty} get ${bestOfferResult.percentOff}% off`;
     }
@@ -124,7 +126,9 @@ export function run(input) {
       message,
       targets: [{ cartLine: { id: line.id } }],
       value: {
-        percentage: { value: Number(trimTrailingZeros(bestOfferResult.effectivePercent)) },
+        percentage: {
+          value: trimTrailingZeros(bestOfferResult.effectivePercent),
+        },
       },
     });
   }
@@ -132,6 +136,7 @@ export function run(input) {
   if (!discounts.length) return EMPTY_DISCOUNT;
 
   return {
+    // choose Maximum so for each line the best single discount applies.
     discountApplicationStrategy: DiscountApplicationStrategy.Maximum,
     discounts,
   };

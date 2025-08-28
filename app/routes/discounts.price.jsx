@@ -43,52 +43,136 @@ export default function PriceCampaignForm() {
   const handleToggle = () => setOpen(!open);
 
   // New submitOffer function
-  async function submitOffer(offerData) {
-    try {
-      const response = await fetch("https://emporium.cardiacambulance.com/api/create-offer", {
+  // async function submitOffer(offerData) {
+  //   try {
+  //     const response = await fetch("https://emporium.cardiacambulance.com/api/create-offer", {
+  //       method: "POST",
+  //       headers: { "Content-Type": "application/json" },
+  //       body: JSON.stringify({
+  //         title: `Offer: Buy ${offerData.buy_quantity}`,
+  //         offer_data: [offerData],
+  //       }),
+  //     });
+
+  //     const data = await response.json();
+  //     console.log(data);
+  //     if (data) {
+  //       alert("Offer successfully created and active at checkout!");
+  //       return true;
+  //     } else {
+  //       alert("Error creating offer");
+  //       return false;
+  //     }
+  //   } catch (err) {
+  //     console.error(err);
+  //     alert("Failed to create offer");
+  //     return false;
+  //   }
+  // }
+
+  // const handleCreateOffer = async () => {
+  //   if (selected.length === 0) {
+  //     alert("Please select products to apply discount");
+  //     return;
+  //   }
+
+  //   const payload = {
+  //     name: campaignName,
+  //     product_id: selected.map((p) => p.id),
+  //     type: "discount",
+  //     buy_quantity: parseInt(buyQuantity) || 1,
+  //     discount_percent: discountType === "percentage" ? parseInt(discountValue) : null,
+  //   };
+
+  //   const success = await submitOffer(payload);
+  //   if (success) {
+  //     setSelected([]);
+  //     setOpen(false);
+  //   }
+  // };
+
+  // New submitOffer function that also saves in DB
+async function submitOffer(offerData) {
+  try {
+    // 1️⃣ Call Shopify API
+    const shopifyResponse = await fetch(
+      "https://emporium.cardiacambulance.com/api/create-offer",
+      {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: `Offer: Buy ${offerData.buy_quantity}`,
           offer_data: [offerData],
         }),
-      });
-
-      const data = await response.json();
-      if (data && data.discount) {
-        alert("Offer successfully created and active at checkout!");
-        return true;
-      } else {
-        alert("Error creating offer");
-        return false;
       }
-    } catch (err) {
-      console.error(err);
-      alert("Failed to create offer");
+    );
+
+    const shopifyData = await shopifyResponse.json();
+
+    if (!shopifyData || shopifyData.errors || shopifyData.userErrors?.length) {
+      alert("Error creating Shopify offer");
+      console.error(shopifyData);
       return false;
     }
+
+    // 2️⃣ Call your Laravel DB API to save offer
+    const dbResponse = await fetch(
+      "https://emporium.cardiacambulance.com/api/product-offers",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: offerData.name,
+          product_ids: offerData.product_id, // Make sure it matches your DB field
+          type: offerData.type || "discount",
+          buy_quantity: offerData.buy_quantity,
+          free_quantity: offerData.free_quantity || null,
+          discount_percent: offerData.discount_percent || null,
+        }),
+      }
+    );
+
+    const dbData = await dbResponse.json();
+
+    if (!dbData || dbData.message !== "Offer applied to products") {
+      alert("Error saving offer in DB");
+      console.error(dbData);
+      return false;
+    }
+
+    alert("Offer successfully created in Shopify and saved in DB!");
+    return true;
+
+  } catch (err) {
+    console.error(err);
+    alert("Failed to create offer");
+    return false;
+  }
+}
+
+// Handle create offer
+const handleCreateOffer = async () => {
+  if (selected.length === 0) {
+    alert("Please select products to apply discount");
+    return;
   }
 
-  const handleCreateOffer = async () => {
-    if (selected.length === 0) {
-      alert("Please select products to apply discount");
-      return;
-    }
-
-    const payload = {
-      name: campaignName,
-      product_id: selected.map((p) => p.id),
-      type: "discount",
-      buy_quantity: parseInt(buyQuantity) || 1,
-      discount_percent: discountType === "percentage" ? parseInt(discountValue) : null,
-    };
-
-    const success = await submitOffer(payload);
-    if (success) {
-      setSelected([]);
-      setOpen(false);
-    }
+  const payload = {
+    name: campaignName,
+    product_id: selected.map((p) => p.id),
+    type: "discount",
+    buy_quantity: parseInt(buyQuantity) || 1,
+    discount_percent: discountType === "percentage" ? parseInt(discountValue) : null,
   };
+
+  const success = await submitOffer(payload);
+
+  if (success) {
+    setSelected([]);
+    setOpen(false);
+  }
+};
+
 
   return (
     <AppProvider i18n={enTranslations}>
