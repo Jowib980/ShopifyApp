@@ -14,11 +14,13 @@ import {
 } from "@shopify/polaris";
 import enTranslations from "@shopify/polaris/locales/en.json";
 import { Outlet } from "@remix-run/react";
+import { useNavigate } from "@remix-run/react";
 
 export default function Create() {
   const [offers, setOffers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showOffers, setShowOffers] = useState(false);
+  const navigate = useNavigate();
 
   const fetchOffers = () => {
     setLoading(true);
@@ -65,6 +67,9 @@ export default function Create() {
                   display: "grid",
                   gap: "20px",
                   gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+                  backgroundColor: "rgb(217 216 216)",
+                  padding: "10px",
+                  borderRadius: "10px"
                 }}
               >
                 {offers.map((item) => {
@@ -119,14 +124,12 @@ export default function Create() {
               {/* Price rule */}
               <Card>
                   <Text variant="headingSm" as="h3">
-                    Price rule
+                    Discount
                   </Text>
-                  <Text>Example: 10% off on shoes</Text>
+                  <Text>Example: Buy 2 Get 10% off!</Text>
                   <Button
                     primary
-                    onClick={() =>
-                      (window.location.href = "/discounts/price")
-                    }
+                    onClick={() => navigate("/discounts/percent")}
                   >
                     Create
                   </Button>
@@ -137,32 +140,17 @@ export default function Create() {
                   <Text variant="headingSm" as="h3">
                     Minimum quantity/volume
                   </Text>
-                  <Text>Example: Buy 2+, Save 5%</Text>
+                  <Text>Example: Buy 2 Get 1 free!</Text>
                   <Button
                     primary
                     onClick={() =>
-                      (window.location.href = "/discounts/create/min-quantity")
+                      (window.location.href = "/discounts/free")
                     }
                   >
                     Create
                   </Button>
               </Card>
 
-              {/* Minimum value */}
-              <Card>
-                  <Text variant="headingSm" as="h3">
-                    Minimum value
-                  </Text>
-                  <Text>Example: Spend +$100, Save 5%</Text>
-                  <Button
-                    primary
-                    onClick={() =>
-                      (window.location.href = "/discounts/create/min-value")
-                    }
-                  >
-                    Create
-                  </Button>
-              </Card>
             </div>
           </Layout.Section>
         </Layout>

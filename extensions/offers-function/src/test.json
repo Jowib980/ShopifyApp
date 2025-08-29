@@ -1,0 +1,27 @@
+{
+  "cart": {
+    "lines": [
+      {
+        "id": "line1",
+        "quantity": 2,
+        "merchandise": {
+          "__typename": "ProductVariant",
+          "id": "gid://shopify/ProductVariant/123456789",
+          "product": {
+            "id": "gid://shopify/Product/123456789",
+            "metafields": {
+              "custom": {
+                "offers": {
+                  "value": "[{\"productId\":\"gid://shopify/Product/123456789\",\"minQty\":2,\"percentOff\":45}]"
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "discountNode": {
+    "metafield": null
+  }
+}

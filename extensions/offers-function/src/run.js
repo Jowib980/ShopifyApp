@@ -6,23 +6,15 @@ import { DiscountApplicationStrategy } from "../generated/api";
  * @typedef {import("../generated/api").FunctionRunResult} FunctionRunResult
  */
 
-/** @type {FunctionRunResult} */
-const EMPTY_DISCOUNT = {
-  discountApplicationStrategy: DiscountApplicationStrategy.All,
-  discounts: [],
-};
-
 function safeParseJSON(s) {
   try {
     return JSON.parse(s ?? "[]");
-  } catch (err) {
-    console.error("Invalid JSON:", err);
+  } catch {
     return [];
   }
 }
 
 function trimTrailingZeros(n) {
-  // return string with up to 6 decimal places, trimmed
   const s = Number(n).toFixed(6);
   return s.replace(/\.?0+$/, "");
 }
@@ -34,51 +26,88 @@ function trimTrailingZeros(n) {
 export function run(input) {
   const { cart, discountNode } = input;
 
-  // Return empty if no cart lines
-  if (!cart?.lines?.length) return EMPTY_DISCOUNT;
-
-  let offers = [];
-
-  // 1️⃣ Collect global offers from discountNode metafield if exists
-  if (discountNode?.metafield?.value) {
-    offers = safeParseJSON(discountNode.metafield.value);
-  }
-
-  // 2️⃣ Collect offers from each product metafield
-  for (const line of cart.lines) {
-    try {
-      const productMf = line?.merchandise?.product?.metafields?.custom?.offers?.value;
-      if (productMf) {
-        const localOffers = safeParseJSON(productMf);
-        if (Array.isArray(localOffers) && localOffers.length) offers = offers.concat(localOffers);
-      }
-    } catch (e) {
-      console.error("Error parsing product metafield for line", line.id, e);
-    }
-  }
-
-  if (!offers.length) return EMPTY_DISCOUNT;
-
   const discounts = [];
 
+  // fallback target to avoid "targets can't be blank"
+  const fallbackTarget =
+    cart?.lines?.length && cart.lines[0].merchandise?.__typename === "ProductVariant"
+      ? [{ productVariant: { id: cart.lines[0].merchandise.id } }]
+      : [{ cartLine: { id: cart?.lines?.[0]?.id || "gid://shopify/CartLine/0" } }];
+
+  if (!cart) {
+    return {
+      discountApplicationStrategy: DiscountApplicationStrategy.All,
+      discounts: [
+        {
+          // message: "DEBUG: no cart",
+          targets: fallbackTarget,
+          value: { percentage: { value: "0" } },
+        },
+      ],
+    };
+  }
+
+  // Parse any global offers from discountNode metafield (optional)
+  let globalOffers = [];
+  if (discountNode?.metafield?.value) {
+    globalOffers = safeParseJSON(discountNode.metafield.value);
+  }
+
+  // Process each cart line separately (so different variant offers both apply)
   for (const line of cart.lines) {
-    if (line.merchandise?.__typename !== "ProductVariant") continue;
-
-    const productGid = line.merchandise.product?.id;
+    const variant = line.merchandise;
     const qty = Number(line.quantity || 0);
-    if (!productGid || qty <= 0) continue;
 
-    // Find offers for this product
+    if (!variant || qty <= 0) continue;
+
+    const variantId = variant.id;
+    const productId = variant.product?.id || null;
+
+    // read offers from variant metafield first, then product metafield as fallback
+    let localOffers = [];
+    const variantMfValue = variant.metafield?.value;
+    const productMfValue = variant.product?.metafield?.value;
+
+    if (variantMfValue) {
+      localOffers = safeParseJSON(variantMfValue);
+    } else if (productMfValue) {
+      localOffers = safeParseJSON(productMfValue);
+    }
+
+    // merge global + local offers
+    const offers = (Array.isArray(globalOffers) ? globalOffers : []).concat(
+      Array.isArray(localOffers) ? localOffers : []
+    );
+
+    if (!offers.length) {
+      discounts.push({
+        // message: `DEBUG: no offers for variant ${variantId}`,
+        targets: [{ productVariant: { id: variantId } }],
+        value: { percentage: { value: "0" } },
+      });
+      continue;
+    }
+
+    // Filter offers that match this variant/product (or offers with no productId apply to all)
     const matching = offers.filter((o) => {
-      const pid = o.productId ?? o.product_id;
-      return pid === productGid;
+      const pid = o.productId ?? o.product_id ?? null;
+      if (!pid) return true; // no pid => global/local for all variants
+      // normalize and compare to variantId or productId
+      const cleanPid = pid.replace(/\\/g, "");
+      return cleanPid === variantId || (productId && cleanPid === productId);
     });
 
-    if (!matching.length) continue;
+    if (!matching.length) {
+      discounts.push({
+        // message: `DEBUG: no matching offers for variant ${variantId}`,
+        targets: [{ productVariant: { id: variantId } }],
+        value: { percentage: { value: "0" } },
+      });
+      continue;
+    }
 
-    // Compute the best offer
-    let bestOfferResult = null;
-
+    // find best offer (highest effective percentage considering free items)
+    let best = null;
     for (const o of matching) {
       const minQty = Number(o.minQty ?? o.min_qty ?? o.buy_quantity ?? 0);
       if (minQty <= 0 || qty < minQty) continue;
@@ -88,9 +117,9 @@ export function run(input) {
 
       let freeItems = 0;
       if (freeQty > 0) {
-        const groupSize = minQty + freeQty;
-        if (groupSize > 0) {
-          const groups = Math.floor(qty / groupSize);
+        const group = minQty + freeQty;
+        if (group > 0) {
+          const groups = Math.floor(qty / group);
           freeItems = groups * freeQty;
         }
       }
@@ -98,11 +127,10 @@ export function run(input) {
       const freePercentage = freeItems > 0 ? (freeItems / qty) * 100 : 0;
       const effectivePercent = Math.max(percentOff, freePercentage);
 
-      if (effectivePercent > 0 && (!bestOfferResult || effectivePercent > bestOfferResult.effectivePercent)) {
-        bestOfferResult = {
+      if (effectivePercent > 0 && (!best || effectivePercent > best.effectivePercent)) {
+        best = {
           effectivePercent,
           percentOff,
-          freePercentage,
           freeItems,
           minQty,
           rawOffer: o,
@@ -110,29 +138,38 @@ export function run(input) {
       }
     }
 
-    if (!bestOfferResult) continue;
-
-    // Build message
-    let message = "";
-    if (bestOfferResult.freeItems > 0) {
-      message = `Buy ${bestOfferResult.minQty} get ${bestOfferResult.rawOffer.freeQty ?? bestOfferResult.rawOffer.free_quantity ?? 0} free`;
-    } else {
-      message = `Buy ${bestOfferResult.minQty} get ${bestOfferResult.percentOff}% off`;
+    if (!best) {
+      discounts.push({
+        // message: `DEBUG: no qualifying offer for variant ${variantId} (qty ${qty})`,
+        targets: [{ productVariant: { id: variantId } }],
+        value: { percentage: { value: "0" } },
+      });
+      continue;
     }
 
+    const message =
+      best.freeItems > 0
+        ? `Buy ${best.minQty} get ${best.rawOffer.freeQty ?? best.rawOffer.free_quantity ?? 0} free`
+        : `Buy ${best.minQty} get ${best.percentOff}% off`;
+
     discounts.push({
-      message,
-      targets: [{ cartLine: { id: line.id } }],
-      value: {
-        percentage: { value: Number(trimTrailingZeros(bestOfferResult.effectivePercent)) },
-      },
+      message: `Offer: ${message}`,
+      targets: [{ productVariant: { id: variantId } }],
+      value: { percentage: { value: trimTrailingZeros(best.effectivePercent) } },
     });
   }
 
-  if (!discounts.length) return EMPTY_DISCOUNT;
+  // if nothing applied, return at least one debug discount with 0
+  if (!discounts.length) {
+    discounts.push({
+      // message: "DEBUG: no discounts generated",
+      targets: fallbackTarget,
+      value: { percentage: { value: "0" } },
+    });
+  }
 
   return {
-    discountApplicationStrategy: DiscountApplicationStrategy.Maximum,
+    discountApplicationStrategy: DiscountApplicationStrategy.All,
     discounts,
   };
 }

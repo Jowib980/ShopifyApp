@@ -24,12 +24,26 @@ export default function PriceCampaignForm() {
   const [loading, setLoading] = useState(false);
   const [products, setProducts] = useState([]);
   const [selected, setSelected] = useState([]);
+  const [offers, setOffers] = useState([]);
 
   const discountOptions = [{ label: "Percentage", value: "percentage" }];
+
+  const fetchOffers = () => {
+    setLoading(true);
+      fetch("https://emporium.cardiacambulance.com/api/offer-products") // proxy from your app
+        .then((res) => res.json())
+        .then((data) => {
+          console.log(data);
+          setOffers(data || []);
+          setLoading(false);
+        })
+        .catch(() => setLoading(false));
+  }
 
   useEffect(() => {
     if (open) {
       setLoading(true);
+      fetchOffers();
       fetch("https://emporium.cardiacambulance.com/shopify/proxy/sync-products")
         .then((res) => res.json())
         .then((data) => {
@@ -42,58 +56,11 @@ export default function PriceCampaignForm() {
 
   const handleToggle = () => setOpen(!open);
 
-  // New submitOffer function
-  // async function submitOffer(offerData) {
-  //   try {
-  //     const response = await fetch("https://emporium.cardiacambulance.com/api/create-offer", {
-  //       method: "POST",
-  //       headers: { "Content-Type": "application/json" },
-  //       body: JSON.stringify({
-  //         title: `Offer: Buy ${offerData.buy_quantity}`,
-  //         offer_data: [offerData],
-  //       }),
-  //     });
-
-  //     const data = await response.json();
-  //     console.log(data);
-  //     if (data) {
-  //       alert("Offer successfully created and active at checkout!");
-  //       return true;
-  //     } else {
-  //       alert("Error creating offer");
-  //       return false;
-  //     }
-  //   } catch (err) {
-  //     console.error(err);
-  //     alert("Failed to create offer");
-  //     return false;
-  //   }
-  // }
-
-  // const handleCreateOffer = async () => {
-  //   if (selected.length === 0) {
-  //     alert("Please select products to apply discount");
-  //     return;
-  //   }
-
-  //   const payload = {
-  //     name: campaignName,
-  //     product_id: selected.map((p) => p.id),
-  //     type: "discount",
-  //     buy_quantity: parseInt(buyQuantity) || 1,
-  //     discount_percent: discountType === "percentage" ? parseInt(discountValue) : null,
-  //   };
-
-  //   const success = await submitOffer(payload);
-  //   if (success) {
-  //     setSelected([]);
-  //     setOpen(false);
-  //   }
-  // };
-
   // New submitOffer function that also saves in DB
 async function submitOffer(offerData) {
   try {
+
+    setLoading(true);
     // 1️⃣ Call Shopify API
     const shopifyResponse = await fetch(
       "https://emporium.cardiacambulance.com/api/create-offer",
@@ -113,6 +80,8 @@ async function submitOffer(offerData) {
       alert("Error creating Shopify offer");
       console.error(shopifyData);
       return false;
+
+      setLoading(false);
     }
 
     // 2️⃣ Call your Laravel DB API to save offer
@@ -177,6 +146,11 @@ const handleCreateOffer = async () => {
   return (
     <AppProvider i18n={enTranslations}>
       <Page title="Create Discount Campaign">
+      {loading ? (
+          <div style={{ padding: "20px", textAlign: "center" }}>
+              <Spinner />
+            </div>
+        ):( 
         <Layout>
           {/* Campaign Name */}
           <Layout.Section>
@@ -230,6 +204,7 @@ const handleCreateOffer = async () => {
             </Button>
           </Layout.Section>
         </Layout>
+        )}
 
         {/* Modal to select products */}
         <Modal
@@ -254,34 +229,67 @@ const handleCreateOffer = async () => {
                 resourceName={{ singular: "product", plural: "products" }}
                 items={products.map((p) => ({ ...p, id: p.id.toString() }))}
                 selectable
-                selectedItems={selected.map((p) => p.id.toString())}
+                selectedItems={[
+                  ...selected.map((p) => p.id.toString()),
+                  // Pre-check products that already have offers
+                  ...offers.map((o) => o.product_id.toString()),
+                ]}
                 onSelectionChange={(selectedIds) => {
                   const newSelected = products.filter((p) =>
                     selectedIds.includes(p.id.toString())
                   );
-                  setSelected(newSelected);
+
+                  // Filter out products that already have offers (cannot deselect)
+                  const filteredSelected = newSelected.filter(
+                    (p) => !offers.some((o) => o.product_id.toString() === p.id.toString())
+                  );
+
+                  setSelected([...filteredSelected, ...offers.map((o) => {
+                    const prod = products.find(p => p.id.toString() === o.product_id.toString());
+                    return prod;
+                  })]);
                 }}
                 renderItem={(item) => {
                   const { id, title, image_srcs } = item;
+
+                  const existingOffer = offers.find((op) => op.product_id.toString() === id);
+                  const isDisabled = !!existingOffer;
+
                   return (
-                    <ResourceItem id={id} accessibilityLabel={`View details for ${title}`}>
-                      <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "5px 0" }}>
-                        {image_srcs && (
-                          <img
-                            src={image_srcs}
-                            alt={title}
-                            style={{ width: "50px", height: "50px", objectFit: "cover", borderRadius: "4px" }}
-                          />
+                    <ResourceItem
+                      id={id}
+                      accessibilityLabel={`View details for ${title}`}
+                      selectable={!isDisabled} // Disable row selection
+                    >
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px", padding: "5px 0" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                          {image_srcs && (
+                            <img
+                              src={image_srcs}
+                              alt={title}
+                              style={{ width: "50px", height: "50px", objectFit: "cover", borderRadius: "4px" }}
+                            />
+                          )}
+                          <p>{title}</p>
+                        </div>
+
+                        {existingOffer && (
+                          <div style={{ backgroundColor: "#bf0711", padding: "5px", borderRadius: "5px" }}>
+                            <p style={{ color: "white", fontSize: "13px", margin: 0, fontWeight: "bold" }}>
+                              Discount already applied
+                            </p>
+                          </div>
                         )}
-                        <p>{title}</p>
                       </div>
                     </ResourceItem>
                   );
                 }}
               />
+
             </div>
           )}
         </Modal>
+
       </Page>
     </AppProvider>
   );
