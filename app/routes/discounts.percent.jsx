@@ -308,9 +308,19 @@ async function submitOfferMultiple(offerData) {
                   style={{ marginRight: 8 }}
                 />
                 
-                <Button label="Select Products Here.." onClick={() => handleToggle(index)}>Browse Products</Button>
+                <Button
+                  tone="success"
+                  variant="primary"
+                  primary
+                  onClick={() => handleToggle(index)}
+                >
+                  Browse Products
+                </Button>
 
                 <Button
+                  tone="success"
+                  variant="primary"
+                  primary
                   icon={DeleteIcon}
                   onClick={() => handleRemove(index)}
                   destructive

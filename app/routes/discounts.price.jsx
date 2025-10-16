@@ -123,94 +123,6 @@ export default function FixedAmountForm() {
   }, [open, shop]);
 
 
-  // const handleToggle = () => setOpen(!open);
-
-  // Submit to Shopify + Laravel
-// async function submitOffer(offerData) {
-//     try {
-//       setLoading(true);
-
-//       // 1️⃣ Shopify API
-//       const shopifyResponse = await fetch(
-//         "https://emporium.cardiacambulance.com/api/create-offer",
-//         {
-//           method: "POST",
-//           headers: { "Content-Type": "application/json" },
-//           body: JSON.stringify({
-//             title: `Offer: Buy ${offerData.buy_quantity} Get ${offerData.amount_off} Off`,
-//             offer_data: [offerData],
-//           }),
-//         }
-//       );
-//       const shopifyData = await shopifyResponse.json();
-
-//       if (!shopifyData || shopifyData.errors || shopifyData.userErrors?.length) {
-//         alert("Error creating Shopify offer");
-//         console.error(shopifyData);
-//         setLoading(false);
-//         return false;
-//       }
-
-//       // 2️⃣ Laravel DB API
-//       const dbResponse = await fetch(
-//         "https://emporium.cardiacambulance.com/api/product-offers",
-//         {
-//           method: "POST",
-//           headers: { "Content-Type": "application/json" },
-//           body: JSON.stringify({
-//             name: offerData.name,
-//             product_ids: offerData.product_id,
-//             type: offerData.type || "amount",
-//             buy_quantity: offerData.buy_quantity,
-//             free_quantity: null,
-//             discount_percent: null,
-//             amount_off: offerData.amount_off || null,
-//           }),
-//         }
-//       );
-//       const dbData = await dbResponse.json();
-
-//       if (!dbData || dbData.message !== "Offer applied to products") {
-//         alert("Error saving offer in DB");
-//         console.error(dbData);
-//         setLoading(false);
-//         return false;
-//       }
-
-//       alert("Offer successfully created in Shopify and saved in DB!");
-//       setLoading(false);
-//       return true;
-//     } catch (err) {
-//       console.error(err);
-//       alert("Failed to create offer");
-//       setLoading(false);
-//       return false;
-//     }
-//   }
-
-//   const handleCreateOffer = async () => {
-//     if (selected.length === 0) {
-//       alert("Please select products to apply discount");
-//       return;
-//     }
-
-//     const payload = {
-//       name: campaignName,
-//       product_id: selected.map((p) => p.id),
-//       type: "discount",
-//       buy_quantity: parseInt(buyQuantity) || 1,
-//       amount_off: parseInt(amount) || 0,
-//     };
-
-//     const success = await submitOffer(payload);
-
-//     if (success) {
-//       setSelected([]);
-//       setOpen(false);
-//     }
-// };
-
-
 const handleCreateOffer = async () => {
   for (const discount of discounts) {
     if (!discount.selectedProducts || discount.selectedProducts.length === 0) {
@@ -449,9 +361,19 @@ async function submitOfferMultiple(offerData) {
                 />
                 {/*<Button onClick={() => setActiveDiscountIndex(index)}>Browse Products</Button>*/}
 
-                <Button onClick={() => handleToggle(index)}>Browse Products</Button>
+                <Button 
+                  tone="success"
+                  variant="primary"
+                  primary
+                  onClick={() => handleToggle(index)}
+                >
+                  Browse Products
+                </Button>
 
                 <Button
+                  tone="critical"
+                  variant="primary"
+                  primary
                   icon={DeleteIcon}
                   onClick={() => handleRemove(index)}
                   destructive
@@ -462,7 +384,7 @@ async function submitOfferMultiple(offerData) {
             ))}
 
             <Button icon={PlusIcon} onClick={handleAdd}>
-              Add Discount
+              Add More
             </Button>
 
 
@@ -476,213 +398,6 @@ async function submitOfferMultiple(offerData) {
             </Layout.Section>
           </Layout>
         )}
-
-        {/* Modal to select products */}
-        {/*<Modal
-          open={open}
-          onClose={handleToggle}
-          title="Select Products"
-          primaryAction={{
-            content: "Done",
-            onAction: handleToggle,
-          }}
-          large
-        >
-          {loading ? (
-            <div style={{ padding: "20px", textAlign: "center" }}>
-              <Spinner />
-            </div>
-          ) : products.length === 0 ? (
-            <div style={{ padding: "20px", textAlign: "center" }}>
-              No products found
-            </div>
-          ) : (
-            <div style={{ maxHeight: "400px", overflowY: "auto" }}>
-              <ResourceList
-                resourceName={{ singular: "product", plural: "products" }}
-                items={products.map((p) => ({ ...p, id: p.id.toString() }))}
-                selectedItems={selected.map((p) => p.id.toString())}
-                selectable
-                onSelectionChange={(selectedIds) => {
-                  // Remove locked IDs before updating state
-                  const filteredIds = selectedIds.filter(
-                    (id) => !lockedIds.has(id)
-                  );
-                  setSelected(
-                    products.filter((p) => filteredIds.includes(p.id.toString()))
-                  );
-                }}
-                renderItem={(item) => {
-                  const { id, title, image_srcs } = item;
-                  const isLocked = lockedIds.has(String(id));
-
-                  return (
-                    <ResourceItem
-                      id={id}
-                      selectable={!isLocked}
-                      accessibilityLabel={`View details for ${title}`}
-                    >
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          gap: "10px",
-                          padding: "5px 0",
-                          opacity: isLocked ? 0.6 : 1,
-                        }}
-                      >
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "10px",
-                          }}
-                        >
-                          {image_srcs && (
-                            <img
-                              src={image_srcs}
-                              alt={title}
-                              style={{
-                                width: "50px",
-                                height: "50px",
-                                objectFit: "cover",
-                                borderRadius: "4px",
-                              }}
-                            />
-                          )}
-                          <p>{title}</p>
-                        </div>
-
-                        {isLocked && (
-                          <div
-                            style={{
-                              backgroundColor: "#bf0711",
-                              padding: "5px",
-                              borderRadius: "5px",
-                            }}
-                          >
-                            <p
-                              style={{
-                                color: "white",
-                                fontSize: "13px",
-                                margin: 0,
-                                fontWeight: "bold",
-                              }}
-                            >
-                              Offer already applied
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    </ResourceItem>
-                  );
-                }}
-              />
-            </div>
-          )}
-        </Modal>*/}
-
-
-{/*<Modal
-  open={open}
-  onClose={() => setOpen(false)}
-  title="Select Products"
-  primaryAction={{ content: "Done", onAction: () => setOpen(false) }}
-  large
->
-  {loading ? (
-    <div style={{ padding: "20px", textAlign: "center" }}>
-      <Spinner />
-    </div>
-  ) : products.length === 0 ? (
-    <div style={{ padding: "20px", textAlign: "center" }}>No products available</div>
-  ) : (
-    <div style={{ maxHeight: "400px", overflowY: "auto" }}>
-      <ResourceList
-        resourceName={{ singular: "product", plural: "products" }}
-        items={products.map((p) => ({ ...p, id: p.id.toString() }))}
-        selectedItems={
-          activeDiscountIndex !== null
-            ? discounts[activeDiscountIndex]?.selectedProducts.map((p) => p.id.toString()) || []
-            : []
-        }
-        selectable
-        onSelectionChange={(selectedIds) => {
-          if (activeDiscountIndex === null) return;
-
-          const selectedProducts = products.filter((p) =>
-            selectedIds.includes(p.id.toString())
-          );
-
-          // Update state
-          const newDiscounts = [...discounts];
-          newDiscounts[activeDiscountIndex] = {
-            ...newDiscounts[activeDiscountIndex],
-            selectedProducts,
-          };
-          setDiscounts(newDiscounts);
-
-          // Save in localStorage
-          localStorage.setItem(
-            `discount-${activeDiscountIndex}-products`,
-            JSON.stringify(selectedProducts)
-          );
-        }}
-
-        renderItem={(item) => {
-          const { id, title, image_srcs } = item;
-
-          // Disable if selected in other discounts
-          const selectedInOtherDiscounts = discounts
-            .filter((_, i) => i !== activeDiscountIndex)
-            .flatMap((d) => (d.selectedProducts || []).map((p) => p.id.toString()));
-
-          const isDisabled = selectedInOtherDiscounts.includes(id);
-
-          return (
-            <ResourceItem
-              id={id}
-              accessibilityLabel={`View details for ${title}`}
-              disabled={isDisabled}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: "10px",
-                  padding: "5px 0",
-                  opacity: isDisabled ? 0.5 : 1,
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                  {image_srcs && (
-                    <img
-                      src={image_srcs}
-                      alt={title}
-                      style={{ width: "50px", height: "50px", objectFit: "cover", borderRadius: "4px" }}
-                    />
-                  )}
-                  <p>{title}</p>
-                </div>
-                {offers.find((o) => o.product_id.toString() === id) && (
-                  <div style={{ backgroundColor: "#bf0711", padding: "5px", borderRadius: "5px" }}>
-                    <p style={{ color: "white", fontSize: "13px", margin: 0, fontWeight: "bold" }}>
-                      Offer already applied
-                    </p>
-                  </div>
-                )}
-              </div>
-            </ResourceItem>
-          );
-        }}
-      />
-    </div>
-  )}
-</Modal>
-*/}
-
 
 
 <Modal

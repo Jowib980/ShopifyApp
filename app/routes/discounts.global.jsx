@@ -194,7 +194,7 @@ export default function Create() {
 
   return (
     <AppProvider i18n={enTranslations}>
-      <Page title="Create Discount Offer">
+      <Page title="Create Universal Discount">
         {loading && (
           <div className="loader-overlay">
             <Spinner accessibilityLabel="Loading..." size="large" />

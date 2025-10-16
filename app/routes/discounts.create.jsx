@@ -130,7 +130,7 @@ export default function Create() {
 
 return (
     <AppProvider i18n={enTranslations}>
-      <Page title="Create Discount Widget">
+      <Page title="Create Specific Product Discount">
         {loading && (      
           <div className="loader-overlay">
             <span className="loader"></span>
