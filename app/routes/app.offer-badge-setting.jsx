@@ -49,8 +49,7 @@ export default function OfferBadgeSetting() {
 
   useEffect(() => {
     if (app && app.config && app.config.host) {
-      const decoded = atob(app.config.host); // e.g. "admin.shopify.com/store/userportal"
-      console.log("Decoded host:", decoded);
+      const decoded = atob(app.config.host);
 
       let shopDomain = "";
 
@@ -64,7 +63,6 @@ export default function OfferBadgeSetting() {
         shopDomain = decoded.split("/")[0];
       }
 
-      console.log("✅ Shop domain:", shopDomain);
       setShop(shopDomain);
     }
   }, [app]);
@@ -158,8 +156,6 @@ export default function OfferBadgeSetting() {
         designType,
         width: tempWidth,
       };
-
-      console.log("payload", payload);
 
       const response = await fetch(`https://emporium.cardiacambulance.com/api/offer-badge-setting?shop=${shop}`, {
         method: "POST",

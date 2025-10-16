@@ -52,8 +52,7 @@ export default function Create() {
 
   useEffect(() => {
     if (app && app.config && app.config.host) {
-      const decoded = atob(app.config.host); // e.g. "admin.shopify.com/store/userportal"
-      console.log("Decoded host:", decoded);
+      const decoded = atob(app.config.host);
 
       let shopDomain = "";
 
@@ -67,7 +66,6 @@ export default function Create() {
         shopDomain = decoded.split("/")[0];
       }
 
-      console.log("✅ Shop domain:", shopDomain);
       setShop(shopDomain);
     }
   }, [app]);
@@ -85,7 +83,6 @@ export default function Create() {
     fetch(`https://emporium.cardiacambulance.com/api/offer-products?shop=${shop}`)
       .then((res) => res.json())
       .then((data) => {
-        console.log(data);
         setOffers(data || []);
         localStorage.setItem('offers', JSON.stringify(data));
         setLoading(false);
@@ -137,7 +134,6 @@ export default function Create() {
     .then((res) => res.json())
     .then((data) => {
       setLoading(false);
-      console.log(data || []);
       handleActiveDiscounts();
     })
     .catch((err) => {
@@ -164,7 +160,6 @@ export default function Create() {
     .then((res) => res.json())
     .then((data) => {
       setLoading(false);
-      console.log(data || []);
       handleActiveDiscounts();
     })
     .catch((err) => {
@@ -187,7 +182,6 @@ export default function Create() {
     .then((res) => res.json())
     .then((data) => {
       setLoading(false);
-      console.log(data || []);
       handleActiveDiscounts();
     })
     .catch((err) => {
@@ -382,6 +376,7 @@ export default function Create() {
                           <Button
                             icon={PlusIcon}
                             primary
+                            variant="primary"
                             onClick={handleGlobalDiscount}
                           >
                             Create
@@ -397,6 +392,7 @@ export default function Create() {
                           <Button
                             icon={PlusIcon}
                             primary
+                            variant="primary"
                             onClick={handleDiscountOptions}
                           >
                             Create

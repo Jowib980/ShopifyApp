@@ -51,8 +51,7 @@ export default function FixedAmountForm() {
 
   useEffect(() => {
     if (app && app.config && app.config.host) {
-      const decoded = atob(app.config.host); // e.g. "admin.shopify.com/store/userportal"
-      console.log("Decoded host:", decoded);
+      const decoded = atob(app.config.host);
 
       let shopDomain = "";
 
@@ -65,8 +64,6 @@ export default function FixedAmountForm() {
         // Fallback for older format
         shopDomain = decoded.split("/")[0];
       }
-
-      console.log("✅ Shop domain:", shopDomain);
       setShop(shopDomain);
     }
   }, [app]);
@@ -77,7 +74,6 @@ export default function FixedAmountForm() {
     fetch(`https://emporium.cardiacambulance.com/api/get-currency?shop=${shop}`)
      .then((res) => res.json())
      .then((data) => {
-      console.log("currencydata", data);
         setCurrency(data.currency || "INR");
         setCurrencySymbol(data.symbol || "Rs.");
         localStorage.setItem("currencydata", JSON.stringify(data));
@@ -124,14 +120,44 @@ export default function FixedAmountForm() {
 
 
 const handleCreateOffer = async () => {
-  for (const discount of discounts) {
-    if (!discount.selectedProducts || discount.selectedProducts.length === 0) {
-      alert("Please select products for all discount rows");
+  try {
+
+    if (!campaignName || campaignName.trim() === "") {
+      alert("Please enter a campaign name.");
       return;
     }
-  }
 
-  try {
+    if (!discounts || discounts.length === 0) {
+      alert("Please add at least one discount row.");
+      return;
+    }
+
+    // 🔹 Validate each discount row
+    for (const discount of discounts) {
+      if (!discount.selectedProducts || discount.selectedProducts.length === 0) {
+        alert("Please select products for all discount rows.");
+        return;
+      }
+
+      if (
+        !discount.buyQuantity ||
+        isNaN(discount.buyQuantity) ||
+        parseInt(discount.buyQuantity) <= 0
+      ) {
+        alert("Please enter a valid 'Buy Quantity' for all discounts.");
+        return;
+      }
+
+      if (
+        !discount.amount ||
+        isNaN(discount.amount) ||
+        parseInt(discount.amount) <= 0
+      ) {
+        alert("Please enter a valid 'Amount Value' for all discounts.");
+        return;
+      }
+    }
+
     setLoading(true);
 
     // Build payload with all discounts
@@ -142,8 +168,6 @@ const handleCreateOffer = async () => {
       amount_off: parseInt(discount.amount),
       type: "amount",
     }));
-
-    console.log("offer data", offerData);
 
     const success = await submitOfferMultiple(offerData);
     if (!success) {
@@ -172,8 +196,6 @@ async function submitOfferMultiple(offerData) {
   try {
     setLoading(true);
 
-    console.log("offer2", offerData);
-
     // ✅ Shopify API call
     const shopifyResponse = await fetch(
       "https://emporium.cardiacambulance.com/api/create-offer",
@@ -181,6 +203,7 @@ async function submitOfferMultiple(offerData) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          shop: shop,
           title: `Offer: ${offerData[0]?.name || "Buy 2"}`,
           offer_data: offerData, // Send full array
         }),
@@ -188,7 +211,6 @@ async function submitOfferMultiple(offerData) {
     );
 
     const shopifyData = await shopifyResponse.json();
-    console.log("shopify data", shopifyData);
 
     if (
       !shopifyData ||
@@ -213,10 +235,7 @@ async function submitOfferMultiple(offerData) {
       }
     );
 
-    console.log("offerrrr", offerData);
-
     const dbData = await dbResponse.json();
-    console.log("db data", dbData);
 
     if (!dbResponse.ok || dbData.message !== "Offer applied to products") {
       console.error("DB API Error:", dbData);
@@ -309,37 +328,6 @@ async function submitOfferMultiple(offerData) {
               </Card>
             </Layout.Section>
 
-            {/* Discount */}
-            {/*<Layout.Section>
-              <div
-               className="discount-section"
-               >
-                <TextField
-                  label="Buy Quantity"
-                  placeholder="e.g. 2"
-                  type="number"
-                  value={buyQuantity}
-                  onChange={setBuyQuantity}
-                />
-                <TextField
-                  label={`Discount Amount (${currency})`}
-                  placeholder="e.g. 20"
-                  type="number"
-                  value={amount}
-                  onChange={setAmount}
-                  suffix={currencySymbol}
-                />
-              </div>
-            </Layout.Section>
-
-            
-            <Layout.Section>
-              <Card sectioned>
-                <Text variant="headingMd">Products</Text>
-                <Button onClick={handleToggle}>Browse Products</Button>
-              </Card>
-            </Layout.Section> */}
-
              <Layout.Section>
             {discounts.map((discount, index) => (
               <div key={index} className="discount-section" style={{ marginBottom: 16 }}>
@@ -359,27 +347,31 @@ async function submitOfferMultiple(offerData) {
                   suffix={currencySymbol}
                   style={{ marginRight: 8 }}
                 />
-                {/*<Button onClick={() => setActiveDiscountIndex(index)}>Browse Products</Button>*/}
 
-                <Button 
-                  tone="success"
-                  variant="primary"
-                  primary
-                  onClick={() => handleToggle(index)}
-                >
-                  Browse Products
-                </Button>
+                <div style={{ alignItems: "end", display: "flex", justifyContent: "center" }}>
+                  <Button 
+                    tone="success"
+                    variant="primary"
+                    primary
+                    onClick={() => handleToggle(index)}
+                  >
+                    Browse Products
+                  </Button>
+                </div>
 
-                <Button
-                  tone="critical"
-                  variant="primary"
-                  primary
-                  icon={DeleteIcon}
-                  onClick={() => handleRemove(index)}
-                  destructive
-                >
-                  Remove
-                </Button>
+                <div style={{ alignItems: "end", display: "flex", justifyContent: "center" }}>
+                  <Button
+                    tone="critical"
+                    variant="primary"
+                    primary
+                    icon={DeleteIcon}
+                    onClick={() => handleRemove(index)}
+                    destructive
+                  >
+                    Remove
+                  </Button>
+                </div>
+
               </div>
             ))}
 
@@ -392,7 +384,7 @@ async function submitOfferMultiple(offerData) {
 
             {/* Apply Discount */}
             <Layout.Section>
-              <Button primary onClick={handleCreateOffer}>
+              <Button primary variant="primary" onClick={handleCreateOffer}>
                 Apply Discount
               </Button>
             </Layout.Section>

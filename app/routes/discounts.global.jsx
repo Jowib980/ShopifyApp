@@ -32,8 +32,7 @@ export default function Create() {
 
    useEffect(() => {
     if (app && app.config && app.config.host) {
-      const decoded = atob(app.config.host); // e.g. "admin.shopify.com/store/userportal"
-      console.log("Decoded host:", decoded);
+      const decoded = atob(app.config.host);
 
       let shopDomain = "";
 
@@ -47,7 +46,6 @@ export default function Create() {
         shopDomain = decoded.split("/")[0];
       }
 
-      console.log("✅ Shop domain:", shopDomain);
       setShop(shopDomain);
     }
   }, [app]);
@@ -58,7 +56,6 @@ export default function Create() {
     fetch(`https://emporium.cardiacambulance.com/api/get-currency?shop=${shop}`)
      .then((res) => res.json())
      .then((data) => {
-      console.log("currencydata", data);
         setCurrency(data.currency || "INR");
         setCurrencySymbol(data.symbol || "Rs.");
         localStorage.setItem("currencydata", JSON.stringify(data));
@@ -96,8 +93,34 @@ export default function Create() {
       return;
     }
 
-    console.log("Selected Discount Type:", discountType);
-    console.log("Discount Data:", discounts);
+    if (!campaignName || campaignName.trim() === "") {
+      alert("Please enter a campaign name.");
+      return;
+    }
+
+    // 🔹 Validate each discount row
+    for (const discount of discounts) {
+     
+      if (
+        !discount.buyQuantity ||
+        isNaN(discount.buyQuantity) ||
+        parseInt(discount.buyQuantity) <= 0
+      ) {
+        alert("Please enter a valid 'Buy Quantity' for discount.");
+        return;
+      }
+
+      if (
+        !discount.discountValue ||
+        isNaN(discount.discountValue) ||
+        parseInt(discount.discountValue) <= 0
+      ) {
+        alert("Please enter a valid 'Discount Value' for discount.");
+        return;
+      }
+    }
+
+    setLoading(true);
 
     // ✅ Prepare payload
     const payload = discounts.map((d) => ({
@@ -107,8 +130,6 @@ export default function Create() {
       discount_value: d.discountValue,
       type: discountType,
     }));
-
-    console.log("Final Offer Payload:", payload);
 
     try {
       setLoading(true);
@@ -124,8 +145,6 @@ export default function Create() {
         return;
       }
 
-      console.log("✅ Products without offers:", noOfferProducts);
-
       // Attach eligible product IDs to payload
       const offerData = payload.map((p) => ({
         ...p,
@@ -139,6 +158,7 @@ export default function Create() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            shop: shop,
             title: `Offer: ${offerData[0]?.name || "Buy 2 Offer"}`,
             offer_data: offerData, // send full array
           }),
@@ -146,7 +166,6 @@ export default function Create() {
       );
 
       const shopifyData = await shopifyResponse.json();
-      console.log("Shopify response:", shopifyData);
 
       if (
         !shopifyData ||
@@ -172,7 +191,6 @@ export default function Create() {
       );
 
       const dbData = await dbResponse.json();
-      console.log("DB response:", dbData);
 
       if (!dbResponse.ok || dbData.message !== "Offer applied to products") {
         console.error("❌ DB API Error:", dbData);

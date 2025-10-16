@@ -46,8 +46,7 @@ export default function PercentForm() {
 
   useEffect(() => {
     if (app && app.config && app.config.host) {
-      const decoded = atob(app.config.host); // e.g. "admin.shopify.com/store/userportal"
-      console.log("Decoded host:", decoded);
+      const decoded = atob(app.config.host);
 
       let shopDomain = "";
 
@@ -60,8 +59,6 @@ export default function PercentForm() {
         // Fallback for older format
         shopDomain = decoded.split("/")[0];
       }
-
-      console.log("✅ Shop domain:", shopDomain);
       setShop(shopDomain);
     }
   }, [app]);
@@ -79,7 +76,6 @@ export default function PercentForm() {
   };
 
   useEffect(() => {
-    console.log("select dis", discounts);
     if (open) {
       setModalLoading(true);
       fetchOffers();
@@ -95,22 +91,44 @@ export default function PercentForm() {
 
 const handleCreateOffer = async () => {
 
-  if(!buyQuantity) {
-    alert("Please add buy quantity");
-  }
+  try {
 
-  if(!discountValue) {
-    alert("Please add discount value");
-  }
-
-  for (const discount of discounts) {
-    if (!discount.selectedProducts || discount.selectedProducts.length === 0) {
-      alert("Please select products for all discount rows");
+    if (!campaignName || campaignName.trim() === "") {
+      alert("Please enter a campaign name.");
       return;
     }
-  }
 
-  try {
+    if (!discounts || discounts.length === 0) {
+      alert("Please add at least one discount row.");
+      return;
+    }
+
+    // 🔹 Validate each discount row
+    for (const discount of discounts) {
+      if (!discount.selectedProducts || discount.selectedProducts.length === 0) {
+        alert("Please select products for all discount rows.");
+        return;
+      }
+
+      if (
+        !discount.buyQuantity ||
+        isNaN(discount.buyQuantity) ||
+        parseInt(discount.buyQuantity) <= 0
+      ) {
+        alert("Please enter a valid 'Buy Quantity' for all discounts.");
+        return;
+      }
+
+      if (
+        !discount.discountValue ||
+        isNaN(discount.discountValue) ||
+        parseInt(discount.discountValue) <= 0
+      ) {
+        alert("Please enter a valid 'Discount Value' for all discounts.");
+        return;
+      }
+    }
+
     setLoading(true);
 
     // Build payload with all discounts
@@ -121,8 +139,6 @@ const handleCreateOffer = async () => {
       discount_percent: parseInt(discount.discountValue),
       type: "discount",
     }));
-
-    console.log("offer data", offerData);
 
     const success = await submitOfferMultiple(offerData);
     if (!success) {
@@ -151,8 +167,6 @@ async function submitOfferMultiple(offerData) {
   try {
     setLoading(true);
 
-    console.log("offer2", offerData);
-
     // ✅ Shopify API call
     const shopifyResponse = await fetch(
       "https://emporium.cardiacambulance.com/api/create-offer",
@@ -160,6 +174,7 @@ async function submitOfferMultiple(offerData) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          shop: shop,
           title: `Offer: ${offerData[0]?.name || "Buy 2"}`,
           offer_data: offerData, // Send full array
         }),
@@ -167,7 +182,6 @@ async function submitOfferMultiple(offerData) {
     );
 
     const shopifyData = await shopifyResponse.json();
-    console.log("shopify data", shopifyData);
 
     if (
       !shopifyData ||
@@ -192,10 +206,7 @@ async function submitOfferMultiple(offerData) {
       }
     );
 
-    console.log("offerrrr", offerData);
-
     const dbData = await dbResponse.json();
-    console.log("db data", dbData);
 
     if (!dbResponse.ok || dbData.message !== "Offer applied to products") {
       console.error("DB API Error:", dbData);
@@ -308,25 +319,30 @@ async function submitOfferMultiple(offerData) {
                   style={{ marginRight: 8 }}
                 />
                 
-                <Button
-                  tone="success"
-                  variant="primary"
-                  primary
-                  onClick={() => handleToggle(index)}
-                >
-                  Browse Products
-                </Button>
+                <div style={{ alignItems: "end", display: "flex", justifyContent: "center" }}>
+                  <Button 
+                    tone="success"
+                    variant="primary"
+                    primary
+                    onClick={() => handleToggle(index)}
+                  >
+                    Browse Products
+                  </Button>
+                </div>
 
-                <Button
-                  tone="success"
-                  variant="primary"
-                  primary
-                  icon={DeleteIcon}
-                  onClick={() => handleRemove(index)}
-                  destructive
-                >
-                  Remove
-                </Button>
+                <div style={{ alignItems: "end", display: "flex", justifyContent: "center" }}>
+                  <Button
+                    tone="critical"
+                    variant="primary"
+                    primary
+                    icon={DeleteIcon}
+                    onClick={() => handleRemove(index)}
+                    destructive
+                  >
+                    Remove
+                  </Button>
+                </div>
+
               </div>
             ))}
 
@@ -339,7 +355,7 @@ async function submitOfferMultiple(offerData) {
  
             {/* Apply Discount */}
             <Layout.Section>
-              <Button primary onClick={handleCreateOffer}>
+              <Button primary variant="primary" onClick={handleCreateOffer}>
                 Apply Discount
               </Button>
             </Layout.Section>
