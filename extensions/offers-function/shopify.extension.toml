@@ -3,6 +3,9 @@ api_version = "2025-01"
 [[extensions]]
 name = "t:name"
 handle = "offers-function"
+
+uid = "fb77a262-6af0-7f3b-1b65-ec2149eb864f05873439"
+
 type = "function"
 
 description = "t:description"

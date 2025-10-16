@@ -38,6 +38,7 @@ if (host === "localhost") {
 }
 
 export default defineConfig({
+  base: "https://shopapp.cardiacambulance.com/", 
   server: {
     allowedHosts: [host],
     cors: {

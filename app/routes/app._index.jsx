@@ -15,9 +15,10 @@ import {
 import { TitleBar, useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 
+import Discount from './app.discounts.jsx';
+
 export const loader = async ({ request }) => {
   await authenticate.admin(request);
-
   return null;
 };
 
@@ -106,7 +107,10 @@ export default function Index() {
 
   return (
     <Page>
-      <TitleBar title="Remix app template">
+
+      <Discount />
+
+      {/*<TitleBar title="Remix app template">
         <button variant="primary" onClick={generateProduct}>
           Generate a product
         </button>
@@ -322,7 +326,7 @@ export default function Index() {
             </BlockStack>
           </Layout.Section>
         </Layout>
-      </BlockStack>
+      </BlockStack>*/}
     </Page>
   );
 }

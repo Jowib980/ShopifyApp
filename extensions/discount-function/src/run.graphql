@@ -8,8 +8,7 @@ query RunInput {
           id
           product {
             id
-            title
-            metafield(namespace: "$app:order-discount", key: "offers") {
+            metafield(namespace: "custom", key: "offers") {
               value
             }
           }
@@ -18,7 +17,7 @@ query RunInput {
     }
   }
   discountNode {
-    metafield(namespace: "$app:order-discount", key: "function-configuration") {
+    metafield(namespace: "custom", key: "offers") {
       value
     }
   }

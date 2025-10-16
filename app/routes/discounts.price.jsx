@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Page,
   Layout,
@@ -14,31 +14,36 @@ import {
   AppProvider,
 } from "@shopify/polaris";
 import enTranslations from "@shopify/polaris/locales/en.json";
-import { ArrowLeftIcon } from "@shopify/polaris-icons";
-import { useNavigate } from "@remix-run/react";
-import { Link } from "@remix-run/react";
 import {PlusIcon, DeleteIcon} from '@shopify/polaris-icons';
 import { useAppBridge } from '@shopify/app-bridge-react';
 
-export default function PercentForm() {
+export default function FixedAmountForm() {
   const [campaignName, setCampaignName] = useState("");
-  const [discountType, setDiscountType] = useState("percentage");
-  const [discountValue, setDiscountValue] = useState("0");
+  const [discountType, setDiscountType] = useState("amount");
+  const [amount, setAmount] = useState("0");
   const [buyQuantity, setBuyQuantity] = useState("0");
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [products, setProducts] = useState([]);
-  const [selected, setSelected] = useState([]); // ✅ only new selections
+  const [selected, setSelected] = useState([]);
   const [offers, setOffers] = useState([]);
-  const navigate = useNavigate();
+  const [currency, setCurrency] = useState("");
+  const [currencySymbol, setCurrencySymbol] = useState("");
   const [discounts, setDiscounts] = useState([
-    { buyQuantity: "", discountValue: "", selectedProducts: [] },
+    { buyQuantity: "", amount: "", selectedProducts: [] },
   ]);
-
-  const discountOptions = [{ label: "Percentage", value: "percentage" }];
   const [activeDiscountIndex, setActiveDiscountIndex] = useState(null);
-
   const [modalLoading, setModalLoading] = useState(false);
+
+
+  // Build locked product IDs (already discounted)
+  const lockedIds = useMemo(
+    () => new Set(offers.map((o) => String(o.product_id))),
+    [offers]
+  );
+
+  const discountOptions = [{ label: "Amount Off", value: "amount" }];
+
 
 
   const app = useAppBridge();
@@ -67,6 +72,20 @@ export default function PercentForm() {
   }, [app]);
 
 
+  const fetchCurrency = () => {
+    setLoading(true);
+    fetch(`https://emporium.cardiacambulance.com/api/get-currency?shop=${shop}`)
+     .then((res) => res.json())
+     .then((data) => {
+      console.log("currencydata", data);
+        setCurrency(data.currency || "INR");
+        setCurrencySymbol(data.symbol || "Rs.");
+        localStorage.setItem("currencydata", JSON.stringify(data));
+        setLoading(false);
+     })
+     .catch(() => setLoading(false));
+  };
+
   const fetchOffers = () => {
     setLoading(true);
     fetch(`https://emporium.cardiacambulance.com/api/offer-products?shop=${shop}`)
@@ -79,10 +98,20 @@ export default function PercentForm() {
   };
 
   useEffect(() => {
-    console.log("select dis", discounts);
+    // Wait until shop is decoded
+    if (!shop) return;
+
+    // Always ensure currency data is available
+    if (localStorage.getItem("currencydata") || !localStorage.getItem("currencydata")) {
+      localStorage.removeItem("currencydata");
+      fetchCurrency();
+    }
+
+    // When modal opens, fetch offers + sync products
     if (open) {
       setModalLoading(true);
       fetchOffers();
+
       fetch(`https://emporium.cardiacambulance.com/api/sync-products?shop=${shop}`)
         .then((res) => res.json())
         .then((data) => {
@@ -91,18 +120,98 @@ export default function PercentForm() {
         })
         .catch(() => setModalLoading(false));
     }
-  }, [open]);
+  }, [open, shop]);
+
+
+  // const handleToggle = () => setOpen(!open);
+
+  // Submit to Shopify + Laravel
+// async function submitOffer(offerData) {
+//     try {
+//       setLoading(true);
+
+//       // 1️⃣ Shopify API
+//       const shopifyResponse = await fetch(
+//         "https://emporium.cardiacambulance.com/api/create-offer",
+//         {
+//           method: "POST",
+//           headers: { "Content-Type": "application/json" },
+//           body: JSON.stringify({
+//             title: `Offer: Buy ${offerData.buy_quantity} Get ${offerData.amount_off} Off`,
+//             offer_data: [offerData],
+//           }),
+//         }
+//       );
+//       const shopifyData = await shopifyResponse.json();
+
+//       if (!shopifyData || shopifyData.errors || shopifyData.userErrors?.length) {
+//         alert("Error creating Shopify offer");
+//         console.error(shopifyData);
+//         setLoading(false);
+//         return false;
+//       }
+
+//       // 2️⃣ Laravel DB API
+//       const dbResponse = await fetch(
+//         "https://emporium.cardiacambulance.com/api/product-offers",
+//         {
+//           method: "POST",
+//           headers: { "Content-Type": "application/json" },
+//           body: JSON.stringify({
+//             name: offerData.name,
+//             product_ids: offerData.product_id,
+//             type: offerData.type || "amount",
+//             buy_quantity: offerData.buy_quantity,
+//             free_quantity: null,
+//             discount_percent: null,
+//             amount_off: offerData.amount_off || null,
+//           }),
+//         }
+//       );
+//       const dbData = await dbResponse.json();
+
+//       if (!dbData || dbData.message !== "Offer applied to products") {
+//         alert("Error saving offer in DB");
+//         console.error(dbData);
+//         setLoading(false);
+//         return false;
+//       }
+
+//       alert("Offer successfully created in Shopify and saved in DB!");
+//       setLoading(false);
+//       return true;
+//     } catch (err) {
+//       console.error(err);
+//       alert("Failed to create offer");
+//       setLoading(false);
+//       return false;
+//     }
+//   }
+
+//   const handleCreateOffer = async () => {
+//     if (selected.length === 0) {
+//       alert("Please select products to apply discount");
+//       return;
+//     }
+
+//     const payload = {
+//       name: campaignName,
+//       product_id: selected.map((p) => p.id),
+//       type: "discount",
+//       buy_quantity: parseInt(buyQuantity) || 1,
+//       amount_off: parseInt(amount) || 0,
+//     };
+
+//     const success = await submitOffer(payload);
+
+//     if (success) {
+//       setSelected([]);
+//       setOpen(false);
+//     }
+// };
+
 
 const handleCreateOffer = async () => {
-
-  if(!buyQuantity) {
-    alert("Please add buy quantity");
-  }
-
-  if(!discountValue) {
-    alert("Please add discount value");
-  }
-
   for (const discount of discounts) {
     if (!discount.selectedProducts || discount.selectedProducts.length === 0) {
       alert("Please select products for all discount rows");
@@ -118,8 +227,8 @@ const handleCreateOffer = async () => {
       name: campaignName || "Buy 2",
       product_id: discount.selectedProducts.map((p) => p.id),
       buy_quantity: parseInt(discount.buyQuantity),
-      discount_percent: parseInt(discount.discountValue),
-      type: "discount",
+      amount_off: parseInt(discount.amount),
+      type: "amount",
     }));
 
     console.log("offer data", offerData);
@@ -134,7 +243,7 @@ const handleCreateOffer = async () => {
     discounts.forEach((_, i) => localStorage.removeItem(`discount-${i}-products`));
 
     // Reset form
-    setDiscounts([{ buyQuantity: "", discountValue: "", selectedProducts: [] }]);
+    setDiscounts([{ buyQuantity: "", amount: "", selectedProducts: [] }]);
     setSelected([]);
     setOpen(false);
     fetchOffers();
@@ -243,7 +352,7 @@ async function submitOfferMultiple(offerData) {
   const handleAdd = () => {
     setDiscounts([
       ...discounts,
-      { buyQuantity: "", discountValue: "", selectedProducts: [] }, // ✅ initialize
+      { buyQuantity: "", amount: "", selectedProducts: [] }, // ✅ initialize
     ]);
   };
 
@@ -265,22 +374,22 @@ async function submitOfferMultiple(offerData) {
   };
 
 
+
   return (
     <AppProvider i18n={enTranslations}>
-      <Page title="Create Discount Campaign">
-        {loading && (      
+      <Page title="Create Fixed Amount Campaign">
+        {loading ? (
           <div className="loader-overlay">
             <span className="loader"></span>
           </div>
-        )}
-
+        ) : (
           <Layout>
             {/* Campaign Name */}
             <Layout.Section>
               <Card sectioned>
                 <TextField
                   label="Campaign name"
-                  placeholder="e.g. Buy 2 Get 20% off"
+                  placeholder={`e.g. Buy 2 Get 20${currencySymbol} off`}
                   value={campaignName}
                   onChange={setCampaignName}
                   helpText="This name helps you identify the campaign internally."
@@ -288,7 +397,38 @@ async function submitOfferMultiple(offerData) {
               </Card>
             </Layout.Section>
 
+            {/* Discount */}
+            {/*<Layout.Section>
+              <div
+               className="discount-section"
+               >
+                <TextField
+                  label="Buy Quantity"
+                  placeholder="e.g. 2"
+                  type="number"
+                  value={buyQuantity}
+                  onChange={setBuyQuantity}
+                />
+                <TextField
+                  label={`Discount Amount (${currency})`}
+                  placeholder="e.g. 20"
+                  type="number"
+                  value={amount}
+                  onChange={setAmount}
+                  suffix={currencySymbol}
+                />
+              </div>
+            </Layout.Section>
+
+            
             <Layout.Section>
+              <Card sectioned>
+                <Text variant="headingMd">Products</Text>
+                <Button onClick={handleToggle}>Browse Products</Button>
+              </Card>
+            </Layout.Section> */}
+
+             <Layout.Section>
             {discounts.map((discount, index) => (
               <div key={index} className="discount-section" style={{ marginBottom: 16 }}>
                 <TextField
@@ -300,15 +440,16 @@ async function submitOfferMultiple(offerData) {
                   style={{ marginRight: 8 }}
                 />
                 <TextField
-                  label="Percentage Discount"
+                  label={`Discount Amount (${currency})`}
                   type="number"
-                  value={discount.discountValue}
-                  onChange={(value) => handleChange(index, "discountValue", value)}
-                  suffix="%"
+                  value={discount.amount}
+                  onChange={(value) => handleChange(index, "amount", value)}
+                  suffix={currencySymbol}
                   style={{ marginRight: 8 }}
                 />
-                
-                <Button label="Select Products Here.." onClick={() => handleToggle(index)}>Browse Products</Button>
+                {/*<Button onClick={() => setActiveDiscountIndex(index)}>Browse Products</Button>*/}
+
+                <Button onClick={() => handleToggle(index)}>Browse Products</Button>
 
                 <Button
                   icon={DeleteIcon}
@@ -321,12 +462,12 @@ async function submitOfferMultiple(offerData) {
             ))}
 
             <Button icon={PlusIcon} onClick={handleAdd}>
-              Add More
+              Add Discount
             </Button>
 
 
           </Layout.Section>
- 
+
             {/* Apply Discount */}
             <Layout.Section>
               <Button primary onClick={handleCreateOffer}>
@@ -334,6 +475,214 @@ async function submitOfferMultiple(offerData) {
               </Button>
             </Layout.Section>
           </Layout>
+        )}
+
+        {/* Modal to select products */}
+        {/*<Modal
+          open={open}
+          onClose={handleToggle}
+          title="Select Products"
+          primaryAction={{
+            content: "Done",
+            onAction: handleToggle,
+          }}
+          large
+        >
+          {loading ? (
+            <div style={{ padding: "20px", textAlign: "center" }}>
+              <Spinner />
+            </div>
+          ) : products.length === 0 ? (
+            <div style={{ padding: "20px", textAlign: "center" }}>
+              No products found
+            </div>
+          ) : (
+            <div style={{ maxHeight: "400px", overflowY: "auto" }}>
+              <ResourceList
+                resourceName={{ singular: "product", plural: "products" }}
+                items={products.map((p) => ({ ...p, id: p.id.toString() }))}
+                selectedItems={selected.map((p) => p.id.toString())}
+                selectable
+                onSelectionChange={(selectedIds) => {
+                  // Remove locked IDs before updating state
+                  const filteredIds = selectedIds.filter(
+                    (id) => !lockedIds.has(id)
+                  );
+                  setSelected(
+                    products.filter((p) => filteredIds.includes(p.id.toString()))
+                  );
+                }}
+                renderItem={(item) => {
+                  const { id, title, image_srcs } = item;
+                  const isLocked = lockedIds.has(String(id));
+
+                  return (
+                    <ResourceItem
+                      id={id}
+                      selectable={!isLocked}
+                      accessibilityLabel={`View details for ${title}`}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          gap: "10px",
+                          padding: "5px 0",
+                          opacity: isLocked ? 0.6 : 1,
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "10px",
+                          }}
+                        >
+                          {image_srcs && (
+                            <img
+                              src={image_srcs}
+                              alt={title}
+                              style={{
+                                width: "50px",
+                                height: "50px",
+                                objectFit: "cover",
+                                borderRadius: "4px",
+                              }}
+                            />
+                          )}
+                          <p>{title}</p>
+                        </div>
+
+                        {isLocked && (
+                          <div
+                            style={{
+                              backgroundColor: "#bf0711",
+                              padding: "5px",
+                              borderRadius: "5px",
+                            }}
+                          >
+                            <p
+                              style={{
+                                color: "white",
+                                fontSize: "13px",
+                                margin: 0,
+                                fontWeight: "bold",
+                              }}
+                            >
+                              Offer already applied
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </ResourceItem>
+                  );
+                }}
+              />
+            </div>
+          )}
+        </Modal>*/}
+
+
+{/*<Modal
+  open={open}
+  onClose={() => setOpen(false)}
+  title="Select Products"
+  primaryAction={{ content: "Done", onAction: () => setOpen(false) }}
+  large
+>
+  {loading ? (
+    <div style={{ padding: "20px", textAlign: "center" }}>
+      <Spinner />
+    </div>
+  ) : products.length === 0 ? (
+    <div style={{ padding: "20px", textAlign: "center" }}>No products available</div>
+  ) : (
+    <div style={{ maxHeight: "400px", overflowY: "auto" }}>
+      <ResourceList
+        resourceName={{ singular: "product", plural: "products" }}
+        items={products.map((p) => ({ ...p, id: p.id.toString() }))}
+        selectedItems={
+          activeDiscountIndex !== null
+            ? discounts[activeDiscountIndex]?.selectedProducts.map((p) => p.id.toString()) || []
+            : []
+        }
+        selectable
+        onSelectionChange={(selectedIds) => {
+          if (activeDiscountIndex === null) return;
+
+          const selectedProducts = products.filter((p) =>
+            selectedIds.includes(p.id.toString())
+          );
+
+          // Update state
+          const newDiscounts = [...discounts];
+          newDiscounts[activeDiscountIndex] = {
+            ...newDiscounts[activeDiscountIndex],
+            selectedProducts,
+          };
+          setDiscounts(newDiscounts);
+
+          // Save in localStorage
+          localStorage.setItem(
+            `discount-${activeDiscountIndex}-products`,
+            JSON.stringify(selectedProducts)
+          );
+        }}
+
+        renderItem={(item) => {
+          const { id, title, image_srcs } = item;
+
+          // Disable if selected in other discounts
+          const selectedInOtherDiscounts = discounts
+            .filter((_, i) => i !== activeDiscountIndex)
+            .flatMap((d) => (d.selectedProducts || []).map((p) => p.id.toString()));
+
+          const isDisabled = selectedInOtherDiscounts.includes(id);
+
+          return (
+            <ResourceItem
+              id={id}
+              accessibilityLabel={`View details for ${title}`}
+              disabled={isDisabled}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: "10px",
+                  padding: "5px 0",
+                  opacity: isDisabled ? 0.5 : 1,
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  {image_srcs && (
+                    <img
+                      src={image_srcs}
+                      alt={title}
+                      style={{ width: "50px", height: "50px", objectFit: "cover", borderRadius: "4px" }}
+                    />
+                  )}
+                  <p>{title}</p>
+                </div>
+                {offers.find((o) => o.product_id.toString() === id) && (
+                  <div style={{ backgroundColor: "#bf0711", padding: "5px", borderRadius: "5px" }}>
+                    <p style={{ color: "white", fontSize: "13px", margin: 0, fontWeight: "bold" }}>
+                      Offer already applied
+                    </p>
+                  </div>
+                )}
+              </div>
+            </ResourceItem>
+          );
+        }}
+      />
+    </div>
+  )}
+</Modal>
+*/}
+
 
 
 <Modal
@@ -530,9 +879,6 @@ async function submitOfferMultiple(offerData) {
     </div>
   )}
 </Modal>
-
-
-
 
       </Page>
     </AppProvider>

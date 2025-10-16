@@ -1,17 +1,17 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
-client_id = "11fa42f73653933ca47a9ea1e7b1e2a7"
+#client_id = "11fa42f73653933ca47a9ea1e7b1e2a7"
+client_id = "d6dcd2395602529382d5737d99e71030"
 name = "Quantity & Breaks Discount"
-application_url = "https://capture-transcript-bookmark-exclusive.trycloudflare.com"
+application_url = "https://shopapp.cardiacambulance.com/app"
 embedded = true
-handle = "quantity-breaks-discount"
+handle = "quantity-breaks-discount-app-1"
 
 [build]
-include_config_on_deploy = true
 automatically_update_urls_on_dev = true
 
 [webhooks]
-api_version = "2025-07"
+api_version = "2025-10"
 
   [[webhooks.subscriptions]]
   topics = [ "app/uninstalled" ]
@@ -23,10 +23,10 @@ api_version = "2025-07"
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "write_products,read_products,write_script_tags,read_script_tags,write_discounts,read_discounts,write_price_rules"
+scopes = "write_products,read_products,write_script_tags,read_script_tags,write_discounts,read_discounts,write_price_rules,write_cart_transforms"
 
 [auth]
-redirect_urls = ["https://capture-transcript-bookmark-exclusive.trycloudflare.com/auth/callback", "https://capture-transcript-bookmark-exclusive.trycloudflare.com/auth/shopify/callback", "https://capture-transcript-bookmark-exclusive.trycloudflare.com/api/auth/callback"]
+redirect_urls = ["https://emporium.cardiacambulance.com/api/callback"]
 
 [pos]
-embedded = false
+embedded = true
