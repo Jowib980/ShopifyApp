@@ -128,6 +128,11 @@ export default function Create() {
   }
 
 
+  const handleBack = () => {
+    navigate("/app");
+  }
+
+
 return (
     <AppProvider i18n={enTranslations}>
       <Page title="Create Specific Product Discount">
@@ -138,11 +143,13 @@ return (
         )}
 
 
-        {/*<Layout>
+        <Layout>
           <Layout.Section>
-            <Button icon={ArrowLeftIcon} onClick={() => navigate("/app/discounts")}>Back</Button>
+            <div style={{marginBottom: "10px"}}>
+              <Button icon={ArrowLeftIcon} onClick={handleBack}>Back</Button>
+            </div>
           </Layout.Section>
-        </Layout>*/}
+        </Layout>
 
         
         <Layout>
@@ -157,44 +164,62 @@ return (
               >
                 {/* Percent offer */}
                 <Card>
-                  <Text variant="headingSm" as="h3">
-                    Discount
-                  </Text>
-                  <Text>Example: Buy 2 Get 10% off!</Text>
+                  <div className="space">
+                    <Text variant="headingSm" as="h3">
+                      Percentage Based Discount
+                    </Text>
+                  </div>
+                  <div className="space">
+                    <Text>Example: Buy 2 Get 10% off!</Text>
+                  </div>
+                  <div className="space">
                     <Button
                       primary
                       onClick={handlePercent}
                     >
                       Create
                     </Button>
+                  </div>
                 </Card>
                       
                 {/* Free offer */}
                 <Card>
-                  <Text variant="headingSm" as="h3">
-                    Minimum Quantity/Volume
-                  </Text>
-                  <Text>Example: Buy 2 Get 1 free!</Text>
+                  <div className="space">
+                    <Text variant="headingSm" as="h3">
+                      Free Product Discount
+                    </Text>
+                  </div>
+                  <div className="space">
+                    <Text>Example: Buy 2 Get 1 free!</Text>
+                  </div>
+                  <div className="space">
                     <Button
                       primary
                       onClick={handleFree}
                     >
                       Create
                     </Button>
+                  </div>
                 </Card>
                       
                 {/* Fixed amount offer */}
                 <Card>
-                  <Text variant="headingSm" as="h3">
-                    Amount Off
-                  </Text>
-                  <Text>Example: Buy 2 Get 10{currencySymbol} off!</Text>
+                  <div className="space">
+                    <Text variant="headingSm" as="h3">
+                     Amount Based Discount
+                    </Text>
+                  </div>
+                  <div className="space">
+                    <Text>Example: Buy 2 Get 10{currencySymbol} off!</Text>
+                  </div>
+                  <div className="space">
                     <Button
                       primary
                       onClick={handleFixedAmount}
                     >
                       Create
                     </Button>
+                  </div>
                 </Card>
                     
               </div>

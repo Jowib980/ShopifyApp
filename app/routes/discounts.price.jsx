@@ -204,7 +204,6 @@ async function submitOfferMultiple(offerData) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           shop: shop,
-          title: `Offer: ${offerData[0]?.name || "Buy 2"}`,
           offer_data: offerData, // Send full array
         }),
       }
@@ -383,11 +382,14 @@ async function submitOfferMultiple(offerData) {
           </Layout.Section>
 
             {/* Apply Discount */}
-            <Layout.Section>
-              <Button primary variant="primary" onClick={handleCreateOffer}>
-                Apply Discount
-              </Button>
-            </Layout.Section>
+              <Layout.Section>
+                <div style={{marginBottom: "10px"}}>
+                  <Button primary variant="primary" onClick={handleCreateOffer}>
+                    Apply Discount
+                  </Button>
+                </div>
+              </Layout.Section>
+
           </Layout>
         )}
 
@@ -453,13 +455,13 @@ async function submitOfferMultiple(offerData) {
             }}
             renderItem={(item) => {
               const { id, title, image_srcs } = item;
-              const selectedInOtherDiscounts = discounts
-                .filter((_, i) => i !== activeDiscountIndex)
-                .flatMap((d) => (d.selectedProducts || []).map((p) => p.id.toString()));
-              const isDisabled = selectedInOtherDiscounts.includes(id);
+              // const selectedInOtherDiscounts = discounts
+              //   .filter((_, i) => i !== activeDiscountIndex)
+              //   .flatMap((d) => (d.selectedProducts || []).map((p) => p.id.toString()));
+              // const isDisabled = selectedInOtherDiscounts.includes(id);
 
               return (
-                <ResourceItem id={id} disabled={isDisabled}>
+                <ResourceItem id={id}>
                   <div
                     style={{
                       display: "flex",
@@ -467,7 +469,7 @@ async function submitOfferMultiple(offerData) {
                       justifyContent: "space-between",
                       gap: "10px",
                       padding: "5px 0",
-                      opacity: isDisabled ? 0.5 : 1,
+                      // opacity: isDisabled ? 0.5 : 1,
                     }}
                   >
                     <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
@@ -485,7 +487,7 @@ async function submitOfferMultiple(offerData) {
                       )}
                       <p>{title}</p>
                     </div>
-                    {isDisabled && (
+                    {/*{isDisabled && (
                       <div
                         style={{
                           backgroundColor: "#FEEAEA",
@@ -505,7 +507,7 @@ async function submitOfferMultiple(offerData) {
                           Used in other discount
                         </p>
                       </div>
-                    )}
+                    )}*/}
                   </div>
                 </ResourceItem>
               );

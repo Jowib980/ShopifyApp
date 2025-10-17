@@ -14,21 +14,22 @@ import { useNavigate } from "@remix-run/react";
 import { PlusIcon, ArrowLeftIcon, DeleteIcon } from "@shopify/polaris-icons";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import "../assets/css/style.css";
+import { Link } from "@remix-run/react";
 
 export default function Create() {
   const [loading, setLoading] = useState(false);
   const [currency, setCurrency] = useState("");
   const [currencySymbol, setCurrencySymbol] = useState("");
-
   const [discountType, setDiscountType] = useState(""); // percentage, free, or fixed
   const [campaignName, setCampaignName] = useState("");
   const [discounts, setDiscounts] = useState([
     { buyQuantity: "", discountValue: "", selectedProducts: [] },
   ]);
-
   const navigate = useNavigate();
   const app = useAppBridge();
   const [shop, setShop] = useState("");
+  const [pageReady, setPageReady] = useState(false);
+
 
    useEffect(() => {
     if (app && app.config && app.config.host) {
@@ -50,7 +51,6 @@ export default function Create() {
     }
   }, [app]);
 
-
   const fetchCurrency = () => {
     setLoading(true);
     fetch(`https://emporium.cardiacambulance.com/api/get-currency?shop=${shop}`)
@@ -63,17 +63,15 @@ export default function Create() {
      })
      .catch(() => setLoading(false));
   };
-
-   useEffect(() => {
-    // Wait until shop is decoded
+   
+  useEffect(() => {
     if (!shop) return;
 
-    // Always ensure currency data is available
-    if (localStorage.getItem("currencydata") || !localStorage.getItem("currencydata")) {
-      localStorage.removeItem("currencydata");
+    localStorage.removeItem("currencydata");
+
+    if (!localStorage.getItem("currencydata")) {
       fetchCurrency();
     }
-
   }, [shop]);
 
   // ✅ Handle discount type selection
@@ -159,7 +157,6 @@ export default function Create() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             shop: shop,
-            title: `Offer: ${offerData[0]?.name || "Buy 2 Offer"}`,
             offer_data: offerData, // send full array
           }),
         }
@@ -209,6 +206,22 @@ export default function Create() {
     }
   };
 
+  const handleBack = () => {
+    navigate("/app");
+  }
+
+  const handleAddDiscount = () => {
+    setDiscounts([
+      ...discounts,
+      { buyQuantity: "", discountValue: "" } // new empty discount row
+    ]);
+  };
+
+  const handleRemoveDiscount = (index) => {
+    const updated = discounts.filter((_, i) => i !== index);
+    setDiscounts(updated);
+  };
+
 
   return (
     <AppProvider i18n={enTranslations}>
@@ -218,7 +231,13 @@ export default function Create() {
             <Spinner accessibilityLabel="Loading..." size="large" />
           </div>
         )}
-
+        <Layout>
+          <Layout.Section>
+            <div style={{marginBottom: "10px"}}>
+              <Button icon={ArrowLeftIcon} onClick={handleBack}>Back</Button>
+            </div>
+          </Layout.Section>
+        </Layout>
         {/* ===================== Discount Type Selection ===================== */}
           <Layout>
             <Layout.Section>
@@ -232,50 +251,67 @@ export default function Create() {
                 >
                   {/* Percentage Discount */}
                   <Card sectioned>
-                    <Text variant="headingSm" as="h3">
-                      Percentage Discount
-                    </Text>
-                    <Text>Example: Buy 2 Get 10% off</Text>
-                    <Button
-                      primary={discountType === "discount"}
-                      onClick={() => handleSelectDiscountType("discount")}
-                    >
-                      {discountType === "discount" ? "Selected" : "Create"}
-                    </Button>
+                    <div className="space">
+                      <Text variant="headingSm" as="h3">
+                        Percentage Based Discount
+                      </Text>
+                    </div>
+                    <div className="space">
+                      <Text>Example: Buy 2 Get 10% off</Text>
+                    </div>
+                    <div className="space">
+                      <Button
+                        primary={discountType === "discount"}
+                        onClick={() => handleSelectDiscountType("discount")}
+                      >
+                        {discountType === "discount" ? "Selected" : "Create"}
+                      </Button>
+                    </div>
                   </Card>
 
                   {/* Free Product */}
                   <Card sectioned>
-                    <Text variant="headingSm" as="h3">
-                      Free Product
-                    </Text>
-                    <Text>Example: Buy 2 Get 1 Free</Text>
-                    <Button
-                      primary={discountType === "free"}
-                      onClick={() => handleSelectDiscountType("free")}
-                    >
-                      {discountType === "free" ? "Selected" : "Create"}
-                    </Button>
+                    <div className="space">
+                      <Text variant="headingSm" as="h3">
+                        Free Product Discount
+                      </Text>
+                    </div>
+                    <div className="space">
+                      <Text>Example: Buy 2 Get 1 Free</Text>
+                    </div>
+                    <div className="space">
+                      <Button
+                        primary={discountType === "free"}
+                        onClick={() => handleSelectDiscountType("free")}
+                      >
+                        {discountType === "free" ? "Selected" : "Create"}
+                      </Button>
+                    </div>
                   </Card>
 
                   {/* Fixed Amount Off */}
                   <Card sectioned>
-                    <Text variant="headingSm" as="h3">
-                      Fixed Amount Off
-                    </Text>
-                    <Text>Example: Buy 2 Get 100{currencySymbol} off</Text>
-                    <Button
-                      primary={discountType === "amount"}
-                      onClick={() => handleSelectDiscountType("amount")}
-                    >
-                      {discountType === "amount" ? "Selected" : "Create"}
-                    </Button>
+                    <div className="space">
+                      <Text variant="headingSm" as="h3">
+                        Amount Based Discount
+                      </Text>
+                    </div>
+                    <div className="space">
+                      <Text>Example: Buy 2 Get 100{currencySymbol} off</Text>
+                    </div>
+                    <div className="space">
+                      <Button
+                        primary={discountType === "amount"}
+                        onClick={() => handleSelectDiscountType("amount")}
+                      >
+                        {discountType === "amount" ? "Selected" : "Create"}
+                      </Button>
+                    </div>
                   </Card>
                 </div>
               </Card>
             </Layout.Section>
           </Layout>
-
           {/* ===================== Discount Form Section ===================== */}
           {discountType && (
             <div className="table-section">
@@ -295,7 +331,6 @@ export default function Create() {
                       onChange={setCampaignName}
                       helpText="Used to identify your campaign internally."
                     />
-
                     {discounts.map((discount, index) => (
                       <div
                         key={index}
@@ -310,47 +345,48 @@ export default function Create() {
                           label="Buy Quantity"
                           type="number"
                           value={discount.buyQuantity}
-                          onChange={(value) =>
-                            handleChange(index, "buyQuantity", value)
-                          }
+                          onChange={(value) => handleChange(index, "buyQuantity", value)}
                         />
 
-                        {/* Dynamic discount value field */}
                         {discountType === "discount" && (
                           <TextField
                             label="Discount (%)"
                             type="number"
                             value={discount.discountValue}
-                            onChange={(value) =>
-                              handleChange(index, "discountValue", value)
-                            }
+                            onChange={(value) => handleChange(index, "discountValue", value)}
                           />
                         )}
-
                         {discountType === "amount" && (
                           <TextField
                             label={`Amount Off (${currencySymbol})`}
                             type="number"
                             value={discount.discountValue}
-                            onChange={(value) =>
-                              handleChange(index, "discountValue", value)
-                            }
+                            onChange={(value) => handleChange(index, "discountValue", value)}
                           />
                         )}
-
                         {discountType === "free" && (
                           <TextField
                             label="Free Quantity"
                             type="number"
                             value={discount.discountValue}
-                            onChange={(value) =>
-                              handleChange(index, "discountValue", value)
-                            }
+                            onChange={(value) => handleChange(index, "discountValue", value)}
                           />
+                        )}
+                        {/* Remove Button */}
+                        {discounts.length > 1 && (
+                          <Button
+                            tone="critical"
+                            onClick={() => handleRemoveDiscount(index)}
+                          >
+                            Remove
+                          </Button>
                         )}
                       </div>
                     ))}
-
+                    {/* Add More Button */}
+                    <div style={{ marginTop: "12px" }}>
+                      <Button icon={PlusIcon} onClick={handleAddDiscount}>Add More</Button>
+                    </div>
                     <div style={{ marginTop: "24px", display: "flex" }}>
                       <div className="">
                         <Button
@@ -378,7 +414,6 @@ export default function Create() {
               </Layout>
             </div>
           )}
-
       </Page>
     </AppProvider>
   );

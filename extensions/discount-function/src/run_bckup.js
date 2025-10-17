@@ -52,26 +52,27 @@ export function run(input) {
     globalOffers = safeParseJSON(discountNode.metafield.value);
   }
 
-  // Process each cart line
+  // Process each cart line separately
   for (const line of cart.lines) {
     const variant = line.merchandise;
     const qty = Number(line.quantity || 0);
+
     if (!variant || qty <= 0) continue;
 
     const variantId = variant.id;
     const productId = variant.product?.id || null;
 
-    // Load local offers from variant or product metafield
     let localOffers = [];
     const variantMfValue = variant.metafield?.value;
     const productMfValue = variant.product?.metafield?.value;
 
-    if (variantMfValue) localOffers = safeParseJSON(variantMfValue);
-    else if (productMfValue) localOffers = safeParseJSON(productMfValue);
+    if (variantMfValue) {
+      localOffers = safeParseJSON(variantMfValue);
+    } else if (productMfValue) {
+      localOffers = safeParseJSON(productMfValue);
+    }
 
-    // Combine global and local offers
-    const offers = [].concat(
-      Array.isArray(globalOffers) ? globalOffers : [],
+    const offers = (Array.isArray(globalOffers) ? globalOffers : []).concat(
       Array.isArray(localOffers) ? localOffers : []
     );
 
@@ -83,15 +84,14 @@ export function run(input) {
       continue;
     }
 
-    // Filter offers that match this variant/product
-    const matchingOffers = offers.filter((o) => {
+    const matching = offers.filter((o) => {
       const pid = o.productId ?? o.product_id ?? null;
-      if (!pid) return true; // if no product restriction, apply to all
+      if (!pid) return true;
       const cleanPid = pid.replace(/\\/g, "");
       return cleanPid === variantId || (productId && cleanPid === productId);
     });
 
-    if (!matchingOffers.length) {
+    if (!matching.length) {
       discounts.push({
         targets: [{ productVariant: { id: variantId } }],
         value: { percentage: { value: "0" } },
@@ -99,36 +99,51 @@ export function run(input) {
       continue;
     }
 
-    // Determine applicable offer for current quantity
-    const applicableOffers = matchingOffers
-      .map((o) => {
-        const minQty = Number(o.minQty ?? o.buy_quantity ?? 0);
-        if (qty < minQty) return null;
+    let best = null;
+    for (const o of matching) {
+      const minQty = Number(o.minQty ?? o.min_qty ?? o.buy_quantity ?? 0);
+      if (minQty <= 0 || qty < minQty) continue;
 
-        const percentOff = Number(o.percentOff ?? o.discount_percent ?? 0);
-        const freeQty = Number(o.freeQty ?? o.free_quantity ?? 0);
-        const amountOff = Number(o.fixedAmountOff ?? o.amount_off ?? 0);
+      const percentOff = Number(o.percentOff ?? o.percent_off ?? o.discount_percent ?? 0);
+      const freeQty = Number(o.freeQty ?? o.free_quantity ?? o.free_qty ?? 0);
+      const amountOff = Number(o.fixedAmountOff ?? o.fixed_amount_off ?? o.amount_off ?? 0);
 
-        // Calculate free items percentage
-        let freePercentage = 0;
-        if (freeQty > 0) {
-          const group = minQty + freeQty;
-          const freeItems = Math.floor(qty / group) * freeQty;
-          freePercentage = (freeItems / qty) * 100;
+      // calculate free items percentage
+      let freeItems = 0;
+      if (freeQty > 0) {
+        const group = minQty + freeQty;
+        if (group > 0) {
+          const groups = Math.floor(qty / group);
+          freeItems = groups * freeQty;
         }
+      }
+      const freePercentage = freeItems > 0 ? (freeItems / qty) * 100 : 0;
 
-        const effectivePercent = Math.max(percentOff, freePercentage);
-
-        return {
+      if (amountOff > 0) {
+        // Prefer amount_off as a fixed discount
+        best = {
+          type: "amount",
           minQty,
-          type: amountOff > 0 ? "amount" : "percentage",
-          discountValue: amountOff > 0 ? amountOff : effectivePercent,
+          amountOff,
           rawOffer: o,
         };
-      })
-      .filter(Boolean);
+      } else {
+        // fallback to percentage/free
+        const effectivePercent = Math.max(percentOff, freePercentage);
+        if (effectivePercent > 0 && (!best || effectivePercent > best.effectivePercent)) {
+          best = {
+            type: "percentage",
+            effectivePercent,
+            percentOff,
+            freeItems,
+            minQty,
+            rawOffer: o,
+          };
+        }
+      }
+    }
 
-    if (!applicableOffers.length) {
+    if (!best) {
       discounts.push({
         targets: [{ productVariant: { id: variantId } }],
         value: { percentage: { value: "0" } },
@@ -136,22 +151,27 @@ export function run(input) {
       continue;
     }
 
-    // Sort descending by minQty so highest threshold applies
-    applicableOffers.sort((a, b) => b.minQty - a.minQty);
-    const offerToApply = applicableOffers[0];
-
-    // Push discount object
-    if (offerToApply.type === "amount") {
-      discounts.push({
-        targets: [{ cartLine: { id: line.id } }],
-        value: { fixedAmount: { amount: trimTrailingZeros(offerToApply.discountValue) } },
-      });
+    let discountObj;
+    if (best.type === "amount") {
+      discountObj = {
+        // message: `Buy ${best.minQty} get ${best.amountOff}rs off`,
+        targets: [{ cartLine: { id: line.id } }], // must apply to line, not variant
+        value: { fixedAmount: { amount: trimTrailingZeros(best.amountOff) } },
+      };
     } else {
-      discounts.push({
+      const message =
+        best.freeItems > 0
+          ? `Buy ${best.minQty} get ${best.rawOffer.freeQty ?? best.rawOffer.free_quantity ?? 0} free`
+          : `Buy ${best.minQty} get ${best.percentOff}% off`;
+
+      discountObj = {
+        // message: `Offer: ${message}`,
         targets: [{ productVariant: { id: variantId } }],
-        value: { percentage: { value: trimTrailingZeros(offerToApply.discountValue) } },
-      });
+        value: { percentage: { value: trimTrailingZeros(best.effectivePercent) } },
+      };
     }
+
+    discounts.push(discountObj);
   }
 
   if (!discounts.length) {

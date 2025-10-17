@@ -141,7 +141,7 @@ export default function FreeForm() {
         product_id: discount.selectedProducts.map((p) => p.id),
         buy_quantity: parseInt(discount.buyQuantity),
         free_quantity: parseInt(discount.freeQuantity),
-        type: "discount",
+        type: "free",
       }));
 
       const success = await submitOfferMultiple(offerData);
@@ -179,7 +179,6 @@ export default function FreeForm() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             shop: shop,
-            title: `Offer: ${offerData[0]?.name || "Buy 2"}`,
             offer_data: offerData, // Send full array
           }),
         }
@@ -356,11 +355,14 @@ export default function FreeForm() {
           </Layout.Section>
 
             {/* Submit */}
-            <Layout.Section>
-              <Button primary variant="primary" onClick={handleCreateOffer}>
-                Apply Discount
-              </Button>
-            </Layout.Section>
+              <Layout.Section>
+                <div style={{marginBottom: "10px"}}>
+                  <Button primary variant="primary" onClick={handleCreateOffer}>
+                    Apply Discount
+                  </Button>
+                </div>
+              </Layout.Section>
+
           </Layout>
         )}
 
@@ -425,13 +427,13 @@ export default function FreeForm() {
             }}
             renderItem={(item) => {
               const { id, title, image_srcs } = item;
-              const selectedInOtherDiscounts = discounts
-                .filter((_, i) => i !== activeDiscountIndex)
-                .flatMap((d) => (d.selectedProducts || []).map((p) => p.id.toString()));
-              const isDisabled = selectedInOtherDiscounts.includes(id);
+              // const selectedInOtherDiscounts = discounts
+              //   .filter((_, i) => i !== activeDiscountIndex)
+              //   .flatMap((d) => (d.selectedProducts || []).map((p) => p.id.toString()));
+              // const isDisabled = selectedInOtherDiscounts.includes(id);
 
               return (
-                <ResourceItem id={id} disabled={isDisabled}>
+                <ResourceItem id={id}>
                   <div
                     style={{
                       display: "flex",
@@ -439,7 +441,7 @@ export default function FreeForm() {
                       justifyContent: "space-between",
                       gap: "10px",
                       padding: "5px 0",
-                      opacity: isDisabled ? 0.5 : 1,
+                      // opacity: isDisabled ? 0.5 : 1,
                     }}
                   >
                     <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
@@ -457,7 +459,7 @@ export default function FreeForm() {
                       )}
                       <p>{title}</p>
                     </div>
-                    {isDisabled && (
+                    {/*{isDisabled && (
                       <div
                         style={{
                           backgroundColor: "#FEEAEA",
@@ -477,7 +479,7 @@ export default function FreeForm() {
                           Used in other discount
                         </p>
                       </div>
-                    )}
+                    )}*/}
                   </div>
                 </ResourceItem>
               );

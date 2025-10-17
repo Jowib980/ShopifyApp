@@ -97,11 +97,14 @@ export default function Create() {
   }
 
   const handleGlobalDiscount = () => {
+    setLoading(true);
     navigate("/discounts/global");
+    setLoading(false);
   }
-
   const handleDiscountOptions = () => {
+    setLoading(true);
     navigate("/discounts/create");
+    setLoading(false);
   };
 
   const handleActiveDiscounts = () => {
@@ -328,6 +331,64 @@ export default function Create() {
                 </Card>
               </Layout.Section>
 
+                <Layout.Section>
+                  <Card>
+                    <div
+                      style={{
+                        display: "grid",
+                        gap: "10px",
+                        gridTemplateColumns: "repeat(2, minmax(300px, 1fr))",
+                      }}
+                    >
+                      {/* Percent offer */}
+                      <Card>
+                        <div className="space">
+                          <Text variant="headingSm" as="h3">
+                            Create Global Discounts
+                          </Text>
+                        </div>
+                        <div className="space">
+                          <Text>Apply a universal discount to all products that don’t have any existing offers.</Text>
+                        </div>
+                        <div className="space">
+                          <Button
+                            icon={PlusIcon}
+                            primary
+                            variant="primary"
+                            onClick={handleGlobalDiscount}
+                          >
+                            Create
+                          </Button>
+                        </div>
+
+                      </Card>
+                            
+                      {/* Free offer */}
+                      <Card>
+                        <div className="space">
+                          <Text variant="headingSm" as="h3">
+                            Create Product Wise Discounts
+                          </Text>
+                        </div>
+                        <div className="space">
+                          <Text>Create a custom discount for specific products of your choice.</Text>
+                        </div>
+                        <div className="space">
+                          <Button
+                            icon={PlusIcon}
+                            primary
+                            variant="primary"
+                            onClick={handleDiscountOptions}
+                          >
+                            Create
+                          </Button>
+                        </div>
+                      </Card>
+                          
+                    </div>
+                  </Card>
+                </Layout.Section>
+              
              
               <Layout.Section>
                 <Card>
@@ -335,14 +396,9 @@ export default function Create() {
                     style={{
                       display: "grid",
                       gap: "10px",
-                      gridTemplateColumns: "repeat(3, minmax(200px, 1fr))",
+                      gridTemplateColumns: "repeat(2, minmax(300px, 1fr))",
                     }}
                   >
-                    <Button
-                      primary
-                      onClick={handleShowDiscountOption}>
-                      Create Discount
-                    </Button>
                   
                     <Button onClick={handleActiveDiscounts}>
                         Active Discounts
@@ -356,57 +412,10 @@ export default function Create() {
               </Layout.Section>
 
 
-              {showDiscountOption && !loading && (
-
-                <Layout.Section>
-                  <Card>
-                    <div
-                      style={{
-                        display: "grid",
-                        gap: "10px",
-                        gridTemplateColumns: "repeat(2, minmax(300px, 1fr))",
-                      }}
-                    >
-                      {/* Percent offer */}
-                      <Card>
-                        <Text variant="headingSm" as="h3">
-                          Create Universal Discount
-                        </Text>
-                        <Text>Apply a universal discount to all products that don’t have any existing offers.</Text>
-                          <Button
-                            icon={PlusIcon}
-                            primary
-                            variant="primary"
-                            onClick={handleGlobalDiscount}
-                          >
-                            Create
-                          </Button>
-                      </Card>
-                            
-                      {/* Free offer */}
-                      <Card>
-                        <Text variant="headingSm" as="h3">
-                          Create Specific Product Deal
-                        </Text>
-                        <Text>Create a custom discount for specific products of your choice.</Text>
-                          <Button
-                            icon={PlusIcon}
-                            primary
-                            variant="primary"
-                            onClick={handleDiscountOptions}
-                          >
-                            Create
-                          </Button>
-                      </Card>
-                          
-                    </div>
-                  </Card>
-                </Layout.Section>
-              )}
-
-        
               {/* Active Offers list */}
-              {showActiveDiscounts && !loading && offers.length > 0 && (
+              {showActiveDiscounts && !loading && (
+
+                offers.length > 0 ? (
 
                 <Layout.Section>
                   <Card>
@@ -491,11 +500,22 @@ export default function Create() {
 
                 </Layout.Section>
 
+                ) : (
+
+                    <Layout.Section>
+                      <Card>
+                        <Text>No Offers Found.</Text>
+                      </Card>
+                    </Layout.Section>
+                )
+
               )}
 
               {/* Deactivate Offers list */}
-              {showDeactivateDiscounts && !loading && offers.length > 0 && (
+              {showDeactivateDiscounts && !loading && (
 
+                offers.length > 0 ? (
+                
                 <Layout.Section>
                   <Card>
                      <Text variant="headingMd" as="h2">Inactive Discounts</Text>
@@ -567,6 +587,15 @@ export default function Create() {
                   </div>
 
                 </Layout.Section>
+
+                ): (
+                    <Layout.Section>
+                      <Card>
+                        <Text>No Offers Found.</Text>
+                      </Card>
+                    </Layout.Section>
+
+                )
 
               )}
         
